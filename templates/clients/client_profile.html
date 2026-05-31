@@ -5,7 +5,7 @@
 {% block page_title %}Perfil del Afiliado{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=1.9">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3.2">
 <link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=1.2">
 {% endblock %}
 
@@ -20,7 +20,7 @@
     </div>
     {% endif %}
 
-    <div class="profile-header {% if membership %}{% if membership.es_valida %}status-active{% else %}status-expired{% endif %}{% endif %}">
+    <div class="profile-header {% if subscription_summary.has_access %}status-active{% else %}status-expired{% endif %}">
 
         <div class="profile-avatar-container">
             {% if client.foto_frente %}
@@ -44,184 +44,197 @@
                 <div class="profile-meta-item"><dt>Teléfono</dt><dd>{{ client.telefono|default:"N/A" }}</dd></div>
                 <div class="profile-meta-item"><dt>Nacimiento</dt><dd>{% if client.fecha_nacimiento %}{{ client.fecha_nacimiento|date:"d/m/Y" }}{% else %}N/A{% endif %}</dd></div>
                 <div class="profile-meta-item"><dt>Sexo</dt><dd>{% if client.sexo %}{{ client.get_sexo_display }}{% else %}N/A{% endif %}</dd></div>
-                {% if client.fecha_corte_dia %}
-                <div class="profile-meta-item"><dt>Fecha de corte</dt><dd>Día {{ client.fecha_corte_dia }} de cada mes</dd></div>
-                {% endif %}
+                <div class="profile-meta-item">
+                    <dt>Fecha de corte</dt>
+                    <dd>{{ subscription_summary.cut_date_display }}</dd>
+                </div>
             </dl>
-            <div class="profile-status-row">
-                {% if membership %}
-                    {% if membership.es_valida %}
-                    <span class="status-pill active">Plan Activo</span>
-                    {% else %}
-                    <span class="status-pill expired">Plan Vencido</span>
-                    {% endif %}
-                {% else %}
-                <span class="status-pill none">Sin Plan Asignado</span>
-                {% endif %}
-                {% if client.fixed_subscription_status == 'ACTIVE' %}
-                <span class="status-pill active">Suscripción Fija Activa</span>
-                {% elif client.fixed_subscription_status == 'SUSPENDED' %}
-                <span class="status-pill expired">Suscripción Fija Suspendida</span>
-                {% endif %}
-            </div>
         </div>
     </div>
 
     <div class="profile-content">
 
-        <!-- Tabla de Membresías -->
-        <div class="card membership-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
-                <h3 style="margin: 0;">Estado de Membresía</h3>
-                <button class="btn btn-primary" onclick="openRenewModal()">+ Asignar Plan</button>
-            </div>
+        <div class="card profile-caja-card">
+            <h3 class="profile-section-title">Caja</h3>
 
-            {% if active_memberships or queued_memberships or historical_memberships %}
-            <div style="overflow-x: auto;">
-                <table class="membership-table">
-                    <thead>
-                        <tr>
-                            <th>Plan</th>
-                            <th>Tipo</th>
-                            <th>Horario</th>
-                            <th>Vigencia</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for mem in active_memberships %}
-                        <tr>
-                            <td><strong style="color: var(--text-main);">{{ mem.plan.nombre }}</strong></td>
-                            <td>{% if mem.plan.is_fixed %}<span class="badge badge-success">Fijo</span>{% else %}<span class="badge badge-warning">Flexible</span>{% endif %}</td>
-                            <td>{% if mem.plan.hora_inicio %}{{ mem.plan.hora_inicio|time:"g:i A" }} - {{ mem.plan.hora_fin|time:"g:i A" }}{% else %}Tiempo Completo{% endif %}</td>
-                            <td>{{ mem.fecha_inicio|date:"d/m/Y" }} a {{ mem.fecha_fin|date:"d/m/Y" }}</td>
-                            <td><span class="badge badge-success">Activo</span></td>
-                            <td>-</td>
-                        </tr>
-                        {% endfor %}
+            <dl class="profile-caja-lines">
+                {% if subscription_summary.fixed_line.kind == "active" %}
+                <div class="profile-caja-line">
+                    <dt>Suscripción mensual</dt>
+                    <dd>
+                        Al día hasta <strong>{{ subscription_summary.fixed_line.covered_until_display }}</strong>
+                        {% if subscription_summary.fixed_line.prepaid_count > 0 %}
+                        <span class="profile-caja-note">({{ subscription_summary.fixed_line.prepaid_count }} mes{{ subscription_summary.fixed_line.prepaid_count|pluralize:" es" }} pagado{{ subscription_summary.fixed_line.prepaid_count|pluralize }} por adelantado)</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                {% elif subscription_summary.fixed_line.kind == "suspended" %}
+                <div class="profile-caja-line profile-caja-line-warn">
+                    <dt>Suscripción mensual</dt>
+                    <dd>
+                        Suspendida
+                        {% if subscription_summary.fixed_line.unpaid_count > 0 %}
+                        · <strong>{{ subscription_summary.fixed_line.unpaid_count }}</strong> periodo{{ subscription_summary.fixed_line.unpaid_count|pluralize }} impago{{ subscription_summary.fixed_line.unpaid_count|pluralize }}
+                        {% endif %}
+                        {% if subscription_summary.fixed_line.last_paid_end_display %}
+                        <span class="profile-caja-note">Último periodo pagado hasta {{ subscription_summary.fixed_line.last_paid_end_display }}</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                {% else %}
+                <div class="profile-caja-line">
+                    <dt>Suscripción mensual</dt>
+                    <dd>Sin suscripción mensual</dd>
+                </div>
+                {% endif %}
 
-                        {% for mem in queued_memberships %}
-                        <tr>
-                            <td><strong style="color: var(--text-main);">{{ mem.plan.nombre }}</strong></td>
-                            <td>{% if mem.plan.is_fixed %}<span class="badge badge-success">Fijo</span>{% else %}<span class="badge badge-warning">Flexible</span>{% endif %}</td>
-                            <td>{% if mem.plan.hora_inicio %}{{ mem.plan.hora_inicio|time:"g:i A" }} - {{ mem.plan.hora_fin|time:"g:i A" }}{% else %}Tiempo Completo{% endif %}</td>
-                            <td>{{ mem.fecha_inicio|date:"d/m/Y" }} a {{ mem.fecha_fin|date:"d/m/Y" }}</td>
-                            <td><span class="badge badge-warning">En Cola</span></td>
-                            <td>
-                                <form method="POST" action="{% url 'billing:membership_delete' mem.id %}" style="margin: 0;">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-danger-outline" style="padding: 0.4rem; display: flex; align-items: center; border-radius: 6px;" title="Cancelar plan" onclick="return confirm('¿Está seguro de cancelar este plan encolado?');">
-                                        <svg style="width:18px;height:18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                {% if subscription_summary.flexible_line %}
+                <div class="profile-caja-line">
+                    <dt>Pase flexible</dt>
+                    <dd>{{ subscription_summary.flexible_line.plan_name }} hasta <strong>{{ subscription_summary.flexible_line.until_display }}</strong></dd>
+                </div>
+                {% endif %}
 
-                        {% for mem in historical_memberships %}
-                        <tr class="muted-plan">
-                            <td>{{ mem.plan.nombre }}</td>
-                            <td>{% if mem.plan.is_fixed %}<span class="badge badge-success">Fijo</span>{% else %}<span class="badge badge-warning">Flexible</span>{% endif %}</td>
-                            <td>{% if mem.plan.hora_inicio %}{{ mem.plan.hora_inicio|time:"g:i A" }} - {{ mem.plan.hora_fin|time:"g:i A" }}{% else %}Tiempo Completo{% endif %}</td>
-                            <td>{{ mem.fecha_inicio|date:"d/m/Y" }} a {{ mem.fecha_fin|date:"d/m/Y" }}</td>
-                            <td><span class="badge" style="background: var(--border-color); color: var(--text-muted);">Expirado</span></td>
-                            <td>-</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div style="text-align: center; padding: 2rem 0;">
-                <svg style="width:48px;height:48px;color:var(--text-muted);margin-bottom:1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <p style="color: var(--text-muted); margin-bottom: 2rem;">Este afiliado no tiene un plan activo.</p>
-                <button class="btn-renew" onclick="openRenewModal()">Asignar Primer Plan</button>
-            </div>
+                {% if subscription_summary.next_charge_hint and subscription_summary.fixed_line.kind == "active" %}
+                <div class="profile-caja-line profile-caja-line-muted">
+                    <dt>Próximo periodo a cobrar</dt>
+                    <dd>Desde {{ subscription_summary.next_charge_hint }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+
+            {% if subscription_summary.fixed_groups_detail %}
+            <details class="profile-period-details">
+                <summary>Ver detalle de periodos</summary>
+                <ul class="profile-period-groups">
+                    {% for group in subscription_summary.fixed_groups_detail %}
+                    <li class="profile-period-group profile-period-{{ group.status }}">
+                        <span class="profile-period-plan">{{ group.plan_name }}</span>
+                        <span class="profile-period-range">{{ group.start_display }} → {{ group.end_display }}</span>
+                        <span class="profile-period-meta">
+                            {% if group.period_count > 1 %}{{ group.period_count }} periodos{% else %}1 periodo{% endif %}
+                            · {% if group.status == "active" %}Vigente{% elif group.status == "queued" %}Por iniciar{% else %}Vencido{% endif %}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
             {% endif %}
+
+            <div class="profile-caja-actions">
+                {% if planes %}
+                <button type="button" class="btn btn-primary" onclick="openPaymentModal()">Registrar cobro</button>
+                {% else %}
+                <button type="button" class="btn btn-primary" disabled title="No hay planes disponibles para cobrar">Registrar cobro</button>
+                {% endif %}
+                <button type="button" class="btn btn-link-muted" onclick="openCutDateModal()">Cambiar fecha de corte</button>
+            </div>
         </div>
 
-        <!-- Historiales lado a lado -->
-        <div class="history-split-container">
-
-            <!-- Historial de Facturación -->
-            <div class="card history-card" style="display: flex; flex-direction: column; max-height: 400px;">
-                <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem; margin-top: 0; flex-shrink: 0;">Historial de Facturación</h3>
-                <div style="overflow-y: auto; flex: 1; padding-right: 0.5rem;">
-                    {% if invoices %}
-                    <ul class="invoice-list">
-                        {% for invoice in invoices %}
-                        <li class="invoice-item">
-                            <div class="invoice-info">
-                                <strong>{{ invoice.nro_control }}</strong>
-                                <span>{{ invoice.fecha_emision|date:"d/m/Y" }}</span>
-                                <span>{% if invoice.plan_snapshot %}{{ invoice.plan_snapshot }}{% else %}{{ invoice.membership.plan.nombre }}{% endif %}</span>
-                            </div>
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
-                                <span class="invoice-amount">Bs {{ invoice.monto_total }}</span>
-                                <a href="{% url 'billing:invoice_detail' invoice.id %}?next={{ request.path|urlencode }}" class="btn btn-primary-outline" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; text-decoration: none;">Previsualizar</a>
-                            </div>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                    <div style="text-align: center; padding: 3rem 0; color: var(--text-muted);">No hay facturas registradas.</div>
-                    {% endif %}
-                </div>
+        <div class="card profile-tabs-card">
+            <div class="profile-tabs-nav" role="tablist">
+                <button type="button" class="profile-tab-btn is-active" data-tab="facturas" role="tab">Facturas</button>
+                <button type="button" class="profile-tab-btn" data-tab="accesos" role="tab">Accesos</button>
+                <button type="button" class="profile-tab-btn" data-tab="auditoria" role="tab">Auditoría</button>
             </div>
 
-            <!-- Historial de Accesos -->
-            <div class="card access-card" style="display: flex; flex-direction: column; max-height: 400px;">
-                <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem; margin-top: 0; flex-shrink: 0;">Historial de Accesos</h3>
-                <div style="overflow-y: auto; flex: 1; padding-right: 0.5rem;">
-                    {% if access_logs %}
-                    <ul class="access-list">
-                        {% for log in access_logs %}
-                        <li class="access-item">
-                            <div class="access-row-top">
-                                <strong class="access-timestamp">{{ log.timestamp|date:"d/m/Y H:i:s" }}</strong>
-                                {% if log.resultado %}<span class="badge badge-success access-badge">Concedido</span>{% else %}<span class="badge badge-danger access-badge">Denegado</span>{% endif %}
-                            </div>
-                            {% if log.motivo %}<span class="access-motivo">{{ log.motivo }}</span>{% endif %}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                    <div style="text-align: center; padding: 3rem 0; color: var(--text-muted);">No hay registros de acceso.</div>
-                    {% endif %}
-                </div>
+            <div class="profile-tab-panel is-active" id="tab-facturas" role="tabpanel">
+                {% if invoices %}
+                <ul class="invoice-list">
+                    {% for invoice in invoices %}
+                    <li class="invoice-item">
+                        <div class="invoice-info">
+                            <strong>{{ invoice.nro_control }}</strong>
+                            <span>{{ invoice.fecha_emision|date:"d/m/Y" }}</span>
+                            <span>{% if invoice.plan_snapshot %}{{ invoice.plan_snapshot }}{% else %}{{ invoice.membership.plan.nombre }}{% endif %}{% if invoice.multa_ves %} (+ multa){% endif %}</span>
+                        </div>
+                        <div class="invoice-item-actions">
+                            <span class="invoice-amount">Bs {{ invoice.monto_total }}</span>
+                            <a href="{% url 'billing:invoice_detail' invoice.id %}?next={{ request.path|urlencode }}" class="btn btn-primary-outline profile-tab-link">Ver ticket</a>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="profile-tab-empty">No hay facturas registradas.</p>
+                {% endif %}
             </div>
 
+            <div class="profile-tab-panel" id="tab-accesos" role="tabpanel">
+                {% if access_logs %}
+                <ul class="access-list">
+                    {% for log in access_logs %}
+                    <li class="access-item">
+                        <div class="access-row-top">
+                            <strong class="access-timestamp">{{ log.timestamp|date:"d/m/Y H:i:s" }}</strong>
+                            {% if log.resultado %}<span class="badge badge-success access-badge">Concedido</span>{% else %}<span class="badge badge-danger access-badge">Denegado</span>{% endif %}
+                        </div>
+                        {% if log.motivo %}<span class="access-motivo">{{ log.motivo }}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                <p class="profile-tab-footer"><a href="{% url 'access:access_log_list' %}" class="profile-tab-link">Ver historial completo de accesos</a></p>
+                {% else %}
+                <p class="profile-tab-empty">No hay registros de acceso.</p>
+                {% endif %}
+            </div>
+
+            <div class="profile-tab-panel" id="tab-auditoria" role="tabpanel">
+                {% if billing_events %}
+                <ul class="event-list">
+                    {% for event in billing_events %}
+                    <li class="event-item">
+                        <span class="event-type">{{ event.get_event_type_display }}</span>
+                        <span class="event-meta">{{ event.created_at|date:"d/m/Y H:i" }}{% if event.motivo %} — {{ event.motivo }}{% endif %}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="profile-tab-empty">Sin movimientos de cuenta registrados.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 
-    <!-- Modal de Renovación -->
-    <div class="modal-overlay" id="renewModal">
-        <div class="modal-content">
-            <h2>{% if membership %}Renovar Plan{% else %}Asignar Plan{% endif %}</h2>
+    <div class="modal-overlay" id="paymentModal">
+        <div class="modal-content modal-content-wide">
+            <h2>Registrar cobro</h2>
+            {% if planes %}
             <form method="POST" action="{% url 'billing:renew_plan' client.codigo_afiliado %}">
                 {% csrf_token %}
-                <div class="form-group">
-                    <label for="plan_id">Seleccione el Plan</label>
-                    <select name="plan_id" id="plan_id" required onchange="updatePrice()">
-                        <option value="" disabled selected>-- Seleccione un plan disponible --</option>
-                        {% for plan in planes %}<option value="{{ plan.id }}" data-usd="{{ plan.precio_usd|stringformat:'f' }}">{{ plan.nombre }} ({{ plan.dias_duracion }} días)</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="price-preview">
-                    <div class="usd" id="price_usd">Precio: $0.00</div>
-                    <div class="ves" id="price_ves">Bs 0.00</div>
-                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 1rem;">Tasa del día: {{ latest_rate.tasa_ves|default:"No Configurada" }} VES/$</div>
-                </div>
+                {% include 'billing/includes/payment_fields.html' %}
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeRenewModal()">Cancelar</button>
+                    <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">Cancelar</button>
                     <button type="submit" class="btn btn-primary" id="btnConfirm" disabled style="padding: 0.75rem 2rem; font-size: 1rem;">Generar Factura</button>
+                </div>
+            </form>
+            {% else %}
+            <p class="profile-modal-empty">No hay planes disponibles para este afiliado en este momento.</p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">Cerrar</button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="cutDateModal">
+        <div class="modal-content">
+            <h2>Cambiar fecha de corte</h2>
+            <form method="POST" action="{% url 'billing:change_cut_date' client.codigo_afiliado %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="cut_day">Nuevo día de corte (1-31)</label>
+                    <input type="number" name="cut_day" id="cut_day" min="1" max="31" required class="form-control" value="{{ client.fecha_corte_dia|default:'' }}">
+                </div>
+                {% include 'billing/includes/cut_date_motivo_fields.html' with field_prefix='' id_prefix='cut_' label='Motivo del cambio' %}
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCutDateModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal de Edición -->
     <div class="modal-overlay" id="editModal">
         <div class="modal-content">
             <h2>Editar Datos Personales</h2>
@@ -269,22 +282,38 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/cut_date_motivo.js' %}?v=1.0"></script>
+<script src="{% static 'js/billing_payment.js' %}?v=1.4"></script>
 <script>
     const tasaDiaStr = "{{ latest_rate.tasa_ves|default:'0' }}".replace(',', '.');
     const tasaDia = parseFloat(tasaDiaStr);
+    let billingPayment;
+    let cutDateMotivo = initCutDateMotivoFields({
+        presetId: 'cut_motivo_preset',
+        customWrapId: 'cut_motivo_custom_wrap',
+        customId: 'cut_motivo_custom',
+    });
 
-    function openRenewModal() {
+    function openPaymentModal() {
         if (tasaDia <= 0 || isNaN(tasaDia)) {
             alert("Atención: No hay una tasa de cambio configurada en el sistema para el día de hoy.");
             return;
         }
-        document.getElementById('renewModal').classList.add('show');
+        document.getElementById('paymentModal').classList.add('show');
     }
 
-    function closeRenewModal() {
-        document.getElementById('renewModal').classList.remove('show');
-        document.getElementById('plan_id').value = "";
-        updatePrice();
+    function closePaymentModal() {
+        document.getElementById('paymentModal').classList.remove('show');
+        if (billingPayment) billingPayment.reset();
+    }
+
+    function openCutDateModal() {
+        document.getElementById('cutDateModal').classList.add('show');
+    }
+
+    function closeCutDateModal() {
+        document.getElementById('cutDateModal').classList.remove('show');
+        if (cutDateMotivo) cutDateMotivo.reset();
     }
 
     function openEditModal() {
@@ -295,21 +324,36 @@
         document.getElementById('editModal').classList.remove('show');
     }
 
-    function updatePrice() {
-        const select = document.getElementById('plan_id');
-        const btnConfirm = document.getElementById('btnConfirm');
-        if (!select.value) {
-            document.getElementById('price_usd').textContent = "Precio: $0.00";
-            document.getElementById('price_ves').textContent = "Bs 0.00";
-            btnConfirm.disabled = true;
-            return;
-        }
-        const option = select.options[select.selectedIndex];
-        const priceUsd = parseFloat(option.getAttribute('data-usd').replace(',', '.'));
-        const priceVes = priceUsd * tasaDia;
-        document.getElementById('price_usd').textContent = `Precio: $${priceUsd.toFixed(2)}`;
-        document.getElementById('price_ves').textContent = `Bs ${priceVes.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        btnConfirm.disabled = false;
-    }
+    document.querySelectorAll('.profile-tab-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var tab = btn.getAttribute('data-tab');
+            document.querySelectorAll('.profile-tab-btn').forEach(function (b) { b.classList.remove('is-active'); });
+            document.querySelectorAll('.profile-tab-panel').forEach(function (p) { p.classList.remove('is-active'); });
+            btn.classList.add('is-active');
+            document.getElementById('tab-' + tab).classList.add('is-active');
+        });
+    });
+
+    {% if planes %}
+    billingPayment = initBillingPayment({
+        selectId: 'plan_id',
+        confirmId: 'btnConfirm',
+        priceUsdId: 'price_usd',
+        priceVesId: 'price_ves',
+        totalVesId: 'price_total_ves',
+        periodBoxId: 'payment-period-box',
+        periodTextId: 'payment-period-text',
+        alertSuspendedId: 'payment-alert-suspended',
+        alertFlexibleId: 'payment-alert-flexible',
+        lateFeeSectionId: 'payment-late-fee-section',
+        lateFeeCheckId: 'apply_late_fee',
+        lateFeeInputId: 'late_fee_usd',
+        lateFeeVesId: 'payment-late-fee-ves',
+        tasaDia: tasaDia,
+        previewUrl: "{% url 'billing:payment_preview' client.codigo_afiliado %}",
+        billingContext: {{ billing_context_json|safe }},
+        planPreviews: {{ plan_previews_json|safe }},
+    });
+    {% endif %}
 </script>
 {% endblock %}

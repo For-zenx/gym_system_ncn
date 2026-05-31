@@ -74,6 +74,12 @@ class Plan(models.Model):
     def is_flexible(self):
         return self.billing_type == self.BillingType.FLEXIBLE
 
+    @property
+    def duracion_display(self):
+        if self.is_fixed:
+            return "Mensual"
+        return f"{self.dias_duracion} días"
+
     def __str__(self):
         if self.is_fixed:
             return f"{self.nombre} (Fijo) - ${self.precio_usd}"
@@ -298,6 +304,10 @@ class Invoice(models.Model):
             original = Invoice.objects.get(pk=self.pk)
             if original.esta_impresa:
                 raise ValidationError("No se puede editar una factura que ya ha sido impresa.")
+
+    @property
+    def monto_cuota_ves(self):
+        return self.monto_total - self.multa_ves
 
     def __str__(self):
         return f"Factura {self.nro_control} - {self.receptor_nombre}"

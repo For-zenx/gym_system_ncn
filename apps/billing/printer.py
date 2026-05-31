@@ -58,39 +58,46 @@ def _format_currency_ves(amount):
 
 def _build_ticket_lines(invoice):
     nombre, cedula, codigo = invoice.get_receptor_for_ticket()
-    monto_str = _format_currency_ves(invoice.monto_total)
+    cuota_ves = invoice.monto_cuota_ves
+    cuota_str = _format_currency_ves(cuota_ves)
+    total_str = _format_currency_ves(invoice.monto_total)
 
     if invoice.membership:
         fecha_inicio = invoice.membership.fecha_inicio.strftime('%d/%m/%Y')
         fecha_fin = invoice.membership.fecha_fin.strftime('%d/%m/%Y')
         cuota_line = f"|CUOTA {fecha_inicio} AL {fecha_fin}|"
     else:
-        # Fallback en caso de que la membresía haya sido removida físicamente
         emision = invoice.fecha_emision.strftime('%d/%m/%Y')
         cuota_line = f"|CUOTA REF EMISION: {emision}|"
 
     lines = [
-        # Datos del cliente (lo que el sistema envía, el encabezado lo genera la máquina)
         ("text", f"RIF/C.I.: {cedula}"),
         ("text", _truncate(f"RAZON SOCIAL: {nombre}", MAX_LINE_WIDTH)),
         ("text", f"Cod. Afil.: {codigo}"),
         ("separator", None),
-        # Descripción de la transacción
         ("text", cuota_line),
-        ("text", _right_align(_truncate(nombre, 28) + " (E)", monto_str)),
-        ("separator", None),
-        # Totales
-        ("text", _right_align("EXENTO", monto_str)),
-        ("separator", None),
-        ("text", _right_align("TOTAL", monto_str)),
-        ("text", _right_align("EFECTIVO 1", monto_str)),
+        ("text", _right_align(_truncate(nombre, 28) + " (E)", cuota_str)),
     ]
+
+    if invoice.multa_ves and invoice.multa_ves > 0:
+        multa_str = _format_currency_ves(invoice.multa_ves)
+        lines.append(("text", _right_align("MULTA POR MOROSIDAD", multa_str)))
+
+    lines.extend([
+        ("separator", None),
+        ("text", _right_align("EXENTO", cuota_str)),
+        ("separator", None),
+        ("text", _right_align("TOTAL", total_str)),
+        ("text", _right_align("EFECTIVO 1", total_str)),
+    ])
     return lines
 
 
 def build_invoice_preview_lines(invoice):
     issued_at = timezone.localtime(invoice.fecha_emision)
-    amount = _format_currency_ves(invoice.monto_total)
+    cuota_ves = invoice.monto_cuota_ves
+    cuota_str = _format_currency_ves(cuota_ves)
+    total_str = _format_currency_ves(invoice.monto_total)
 
     if invoice.membership:
         fecha_inicio = invoice.membership.fecha_inicio.strftime('%d/%m/%Y')
@@ -113,12 +120,19 @@ def build_invoice_preview_lines(invoice):
         _right_align(f"FECHA: {PREVIEW_FISCAL_DATE}", f"HORA: {PREVIEW_FISCAL_TIME}", PREVIEW_LINE_WIDTH),
         _preview_separator(),
         _truncate(quota_line, PREVIEW_LINE_WIDTH),
-        _right_align(_truncate(client_name, 20) + " (E)", amount, PREVIEW_LINE_WIDTH),
+        _right_align(_truncate(client_name, 20) + " (E)", cuota_str, PREVIEW_LINE_WIDTH),
+    ])
+
+    if invoice.multa_ves and invoice.multa_ves > 0:
+        multa_str = _format_currency_ves(invoice.multa_ves)
+        lines.append(_right_align("MULTA POR MOROSIDAD", multa_str, PREVIEW_LINE_WIDTH))
+
+    lines.extend([
         _preview_separator(),
-        _right_align("EXENTO", amount, PREVIEW_LINE_WIDTH),
+        _right_align("EXENTO", cuota_str, PREVIEW_LINE_WIDTH),
         _preview_separator(),
-        _right_align("TOTAL", amount, PREVIEW_LINE_WIDTH),
-        _right_align("EFECTIVO 1", amount, PREVIEW_LINE_WIDTH),
+        _right_align("TOTAL", total_str, PREVIEW_LINE_WIDTH),
+        _right_align("EFECTIVO 1", total_str, PREVIEW_LINE_WIDTH),
     ])
     return lines
 

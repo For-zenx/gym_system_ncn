@@ -49,6 +49,38 @@ class Client(models.Model):
         return self.memberships.filter(fecha_inicio__lte=today, fecha_fin__gte=today)
 
     @property
+    def has_access_today(self):
+        return self.active_memberships.exists()
+
+    @property
+    def has_active_flexible(self):
+        from datetime import date
+        from apps.billing.models import Plan
+
+        today = date.today()
+        return self.memberships.filter(
+            plan__billing_type=Plan.BillingType.FLEXIBLE,
+            fecha_inicio__lte=today,
+            fecha_fin__gte=today,
+        ).exists()
+
+    @property
+    def next_fixed_expiry(self):
+        from datetime import date
+        from apps.billing.models import Plan
+
+        today = date.today()
+        membership = (
+            self.memberships.filter(
+                plan__billing_type=Plan.BillingType.FIXED,
+                fecha_fin__gte=today,
+            )
+            .order_by("fecha_fin")
+            .first()
+        )
+        return membership.fecha_fin if membership else None
+
+    @property
     def fixed_subscription_status(self):
         from datetime import date
         from apps.billing.models import Plan

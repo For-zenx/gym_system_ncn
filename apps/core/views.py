@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.urls import reverse
 import base64
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -9,7 +10,13 @@ from apps.clients.validation import validate_client_data, client_form_context, a
 from apps.access.models import AccessLog
 from apps.access import ai_engine
 from apps.billing.models import Plan, ExchangeRate
-from apps.billing.services import register_membership_renewal
+from apps.billing.services import (
+    register_membership_renewal,
+    parse_late_fee_from_post,
+    parse_payment_cut_from_post,
+)
+from apps.billing.views import _charge_form_context
+from django.core.exceptions import ValidationError
 
 def get_next_codigo_afiliado():
     last_client = Client.objects.order_by('id').last()
@@ -124,22 +131,43 @@ def enrollment_billing(request, codigo_afiliado):
             return redirect('enrollment_billing', codigo_afiliado=codigo_afiliado)
             
         plan = get_object_or_404(Plan, id=plan_id)
-        
+        apply_late_fee, late_fee_usd = parse_late_fee_from_post(request.POST)
+        payment_cut_day, payment_cut_motivo = parse_payment_cut_from_post(request.POST)
+
         try:
-            membership, invoice = register_membership_renewal(client, plan)
-            return render(request, 'enrollment/success_step.html', {
-                'client': client,
-                'invoice': invoice,
-                'membership': membership
-            })
+            result = register_membership_renewal(
+                client,
+                plan,
+                apply_late_fee=apply_late_fee,
+                late_fee_usd=late_fee_usd,
+                acting_user=request.user,
+                payment_cut_day=payment_cut_day,
+                payment_cut_motivo=payment_cut_motivo,
+            )
+            for warning in result.warnings:
+                if warning == "flexible_on_suspended_subscription":
+                    messages.warning(
+                        request,
+                        "Pase flexible vendido con suscripción fija suspendida. El afiliado tiene acceso por el pase.",
+                    )
+            success_url = reverse(
+                "billing:payment_success",
+                kwargs={"pk": result.invoice.pk},
+            )
+            return redirect("{}?origin=enrollment".format(success_url))
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return redirect('enrollment_billing', codigo_afiliado=codigo_afiliado)
         except Exception as e:
             messages.error(request, f"Error al generar factura: {str(e)}")
             return redirect('enrollment_billing', codigo_afiliado=codigo_afiliado)
-            
+
+    planes = Plan.objects.filter(is_active=True)
     context = {
         'client': client,
-        'planes': Plan.objects.filter(is_active=True),
+        'planes': planes,
         'latest_rate': ExchangeRate.get_latest(),
     }
+    context.update(_charge_form_context(client, planes))
     context.update(client_form_context(client=client))
     return render(request, 'enrollment/billing_step.html', context)

@@ -1,0 +1,14 @@
+<div class="form-group billing-cut-motivo-fields">
+    <label for="{{ id_prefix }}motivo_preset">{{ label|default:"Motivo del cambio" }}</label>
+    <select name="{{ field_prefix }}motivo_preset" id="{{ id_prefix }}motivo_preset" required class="form-control">
+        <option value="" disabled selected>-- Seleccione un motivo --</option>
+        {% for reason in cut_date_change_reasons %}
+        <option value="{{ reason }}">{{ reason }}</option>
+        {% endfor %}
+        <option value="__other__">Ninguna de las anteriores (describir la razón)</option>
+    </select>
+    <div id="{{ id_prefix }}motivo_custom_wrap" class="billing-cut-motivo-custom" style="display: none;">
+        <label for="{{ id_prefix }}motivo_custom">Describa el motivo</label>
+        <textarea name="{{ field_prefix }}motivo_custom" id="{{ id_prefix }}motivo_custom" rows="2" placeholder="Detalle del cambio"></textarea>
+    </div>
+</div>

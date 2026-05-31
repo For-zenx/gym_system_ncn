@@ -1,0 +1,53 @@
+<div class="form-group">
+    <label for="plan_id">Seleccione el Plan</label>
+    <select name="plan_id" id="plan_id" required>
+        <option value="" disabled selected>-- Seleccione un plan disponible --</option>
+        {% for plan in planes %}
+        <option value="{{ plan.id }}" data-usd="{{ plan.precio_usd|stringformat:'f' }}" data-billing-type="{{ plan.billing_type }}">
+            {{ plan.nombre }} ({{ plan.duracion_display }})
+        </option>
+        {% endfor %}
+    </select>
+</div>
+
+<div id="payment-cut-day-section" class="form-group billing-cut-day-section" style="display: none;">
+    <div class="billing-cut-day-header">
+        <label for="payment_cut_day_display">Día de corte (1-31)</label>
+        <button type="button" class="btn-link-muted billing-cut-day-edit-btn" id="payment_cut_day_edit_btn">Modificar</button>
+    </div>
+    <input type="hidden" name="payment_cut_day" id="payment_cut_day" value="{{ payment_cut_day_default }}">
+    <input type="hidden" name="payment_cut_initial" id="payment_cut_initial" value="{{ payment_cut_day_default }}">
+    <input type="hidden" name="payment_cut_editing" id="payment_cut_editing" value="0">
+    <input type="number" id="payment_cut_day_display" min="1" max="31" value="{{ payment_cut_day_default }}" disabled class="billing-cut-day-input">
+    <p class="billing-field-hint" id="payment_cut_day_hint">Se aplicará al confirmar este cobro.</p>
+    <div id="payment-cut-motivo-section" class="billing-cut-motivo-section" style="display: none;">
+        {% include 'billing/includes/cut_date_motivo_fields.html' with field_prefix='payment_cut_' id_prefix='payment_cut_' label='Motivo del cambio de corte' %}
+    </div>
+</div>
+
+<div id="payment-period-box" class="billing-info-box" style="display: none;">
+    <span id="payment-period-text"></span>
+</div>
+<div id="payment-alert-suspended" class="billing-alert billing-alert-warning" style="display: none;"></div>
+<div id="payment-alert-flexible" class="billing-alert billing-alert-info" style="display: none;">
+    Suscripción fija suspendida: el pase flexible otorgará acceso temporal.
+</div>
+
+<div id="payment-late-fee-section" class="billing-late-fee" style="display: none;">
+    <label class="billing-checkbox">
+        <input type="checkbox" name="apply_late_fee" id="apply_late_fee">
+        Agregar multa por morosidad
+    </label>
+    <div class="billing-late-fee-row">
+        <label for="late_fee_usd">Monto (USD)</label>
+        <input type="number" name="late_fee_usd" id="late_fee_usd" step="0.01" min="0" class="form-control" style="max-width: 120px;">
+        <span id="payment-late-fee-ves" class="billing-muted"></span>
+    </div>
+</div>
+
+<div class="price-preview">
+    <div class="usd" id="price_usd">Precio: $0.00</div>
+    <div class="ves" id="price_ves">Bs 0.00</div>
+    <div class="ves billing-total-line" id="price_total_ves">Total: Bs 0.00</div>
+    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 1rem;">Tasa del día: {{ latest_rate.tasa_ves|default:"No Configurada" }} VES/$</div>
+</div>

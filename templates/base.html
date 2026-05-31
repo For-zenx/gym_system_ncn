@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Perfect Line II{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.1">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.3">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -76,21 +76,21 @@
     </div>
     
     <!-- Modal Global de Tasa de Cambio -->
-    <div class="rate-modal-overlay" id="rateModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-        <div class="modal-content" style="background: var(--bg-surface); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color); width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-            <h2 style="margin-top: 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; color: var(--text-main);">Actualizar Tasa VES/$</h2>
+    <div class="modal-overlay" id="rateModal">
+        <div class="modal-content modal-content-narrow">
+            <h2>Actualizar Tasa VES/$</h2>
             <form method="POST" action="{% url 'billing:update_rate' %}">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.path }}">
-                
-                <div class="form-group" style="margin-bottom: 1.5rem;">
-                    <label for="tasa_ves" style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Nueva Tasa de Cambio (VES/$)</label>
-                    <input type="number" step="0.01" min="0" id="tasa_ves" name="tasa_ves" placeholder="Ej. 36.50" value="{{ latest_rate.tasa_ves|default:'' }}" required style="width: 100%; padding: 0.85rem; background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 6px; box-sizing: border-box; font-size: 1.1rem; outline: none;">
+
+                <div class="form-group">
+                    <label for="tasa_ves">Nueva Tasa de Cambio (VES/$)</label>
+                    <input type="number" step="0.01" min="0" id="tasa_ves" name="tasa_ves" placeholder="Ej. 36.50" value="{{ latest_rate.tasa_ves|default:'' }}" required>
                 </div>
-                
-                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                    <button type="button" class="btn btn-secondary" onclick="closeRateModal()" style="padding: 0.6rem 1.2rem;">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1.2rem;">Guardar Tasa</button>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeRateModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Tasa</button>
                 </div>
             </form>
         </div>
@@ -99,19 +99,18 @@
     <script>
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         window.DASHBOARD_WS_URL = wsScheme + "://" + window.location.host + "/ws/dashboard/";
-        
+
         function openRateModal() {
-            const modal = document.getElementById('rateModal');
-            modal.style.display = 'flex';
-            setTimeout(() => {
+            document.getElementById('rateModal').classList.add('show');
+            setTimeout(function () {
                 const input = document.getElementById('tasa_ves');
                 input.focus();
-                input.select(); // auto-select para sobreescribir rápido
+                input.select();
             }, 100);
         }
-        
+
         function closeRateModal() {
-            document.getElementById('rateModal').style.display = 'none';
+            document.getElementById('rateModal').classList.remove('show');
         }
     </script>
     <script src="{% static 'js/dashboard_ws.js' %}?v=1.6"></script>

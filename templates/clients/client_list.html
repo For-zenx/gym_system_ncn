@@ -5,16 +5,20 @@
 {% block page_title %}Lista de Afiliados{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
         <form method="GET" action="{% url 'clients:client_list' %}" style="display: flex; gap: 0.5rem;">
-            <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Buscar por cédula, código o nombre..." 
+            <input type="text" name="q" value="{{ search_query }}" placeholder="Buscar por cédula, código o nombre..." 
                    style="padding: 0.625rem 1rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background-color: var(--bg-surface); color: var(--text-main); width: 300px;">
+            {% if moroso_filter %}<input type="hidden" name="moroso" value="1">{% endif %}
             <button type="submit" class="btn btn-primary">Buscar</button>
-            {% if request.GET.q %}
+            {% if search_query or moroso_filter %}
             <a href="{% url 'clients:client_list' %}" class="btn btn-secondary">Limpiar</a>
             {% endif %}
         </form>
+        <a href="{% url 'clients:client_list' %}?moroso=1{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}" class="btn {% if moroso_filter %}btn-primary{% else %}btn-secondary{% endif %}">
+            {% if moroso_filter %}Morosos (activo){% else %}Ver morosos{% endif %}
+        </a>
     </div>
     <a href="{% url 'enrollment' %}" class="btn btn-primary">+ Nuevo Afiliado</a>
 </div>
@@ -47,14 +51,14 @@
                 <td style="color: var(--text-muted);">{{ client.codigo_afiliado }}</td>
                 <td>{{ client.fecha_ingreso|date:"d/m/Y" }}</td>
                 <td>
-                    {% if client.active_memberships %}
+                    {% if client.has_access_today %}
                         <span class="badge badge-success">Activo</span>
+                    {% elif client.fixed_subscription_status == 'SUSPENDED' %}
+                        <span class="badge badge-danger">Suspendido</span>
+                    {% elif client.memberships.all %}
+                        <span class="badge badge-danger">Vencido</span>
                     {% else %}
-                        {% if client.memberships.all %}
-                            <span class="badge badge-danger">Vencido</span>
-                        {% else %}
-                            <span class="badge badge-warning">Sin Plan</span>
-                        {% endif %}
+                        <span class="badge badge-warning">Sin Plan</span>
                     {% endif %}
                 </td>
                 <td>

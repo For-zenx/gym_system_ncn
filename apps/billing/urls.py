@@ -1,10 +1,27 @@
 from django.urls import path
-from .views import RenewPlanView, PlanListView, PlanCreateView, PlanUpdateView, PlanDeleteView, MembershipDeleteView, ExchangeRateUpdateView, InvoiceListView, InvoiceDetailView, PrintInvoiceActionView
+from .views import (
+    RenewPlanView,
+    ChangeCutDateView,
+    PaymentPeriodPreviewView,
+    PaymentSuccessView,
+    PlanListView,
+    PlanCreateView,
+    PlanUpdateView,
+    PlanDeleteView,
+    MembershipDeleteView,
+    ExchangeRateUpdateView,
+    InvoiceListView,
+    InvoiceDetailView,
+    PrintInvoiceActionView,
+)
 
 app_name = 'billing'
 
 urlpatterns = [
     path('renovar/<str:codigo_afiliado>/', RenewPlanView.as_view(), name='renew_plan'),
+    path('preview-cobro/<str:codigo_afiliado>/', PaymentPeriodPreviewView.as_view(), name='payment_preview'),
+    path('cobro-exito/<int:pk>/', PaymentSuccessView.as_view(), name='payment_success'),
+    path('corte/<str:codigo_afiliado>/', ChangeCutDateView.as_view(), name='change_cut_date'),
     path('planes/', PlanListView.as_view(), name='plan_list'),
     path('planes/nuevo/', PlanCreateView.as_view(), name='plan_create'),
     path('planes/editar/<int:pk>/', PlanUpdateView.as_view(), name='plan_update'),

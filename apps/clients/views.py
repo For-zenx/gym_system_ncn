@@ -7,7 +7,9 @@ from django.db.models import Q
 from datetime import date
 from .models import Client
 from .validation import validate_client_data, client_form_context, apply_client_fields
-from apps.billing.models import Plan, ExchangeRate, Invoice
+from apps.billing.models import Plan, ExchangeRate, Invoice, ClientBillingEvent
+from apps.billing.services import get_profile_subscription_summary
+from apps.billing.views import _charge_form_context
 
 
 class ClientListView(LoginRequiredMixin, ListView):
@@ -25,7 +27,22 @@ class ClientListView(LoginRequiredMixin, ListView):
                 Q(codigo_afiliado__icontains=q) |
                 Q(nombre__icontains=q)
             )
+
+        if self.request.GET.get('moroso') == '1':
+            today = date.today()
+            queryset = queryset.filter(fecha_corte_dia__isnull=False).exclude(
+                memberships__plan__billing_type=Plan.BillingType.FIXED,
+                memberships__fecha_inicio__lte=today,
+                memberships__fecha_fin__gte=today,
+            ).distinct()
+
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['moroso_filter'] = self.request.GET.get('moroso') == '1'
+        context['search_query'] = self.request.GET.get('q', '')
+        return context
 
 
 class ClientProfileView(LoginRequiredMixin, DetailView):
@@ -38,27 +55,14 @@ class ClientProfileView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        today = date.today()
-
-        active_mems = self.object.active_memberships
-        queued_mems = self.object.memberships.filter(fecha_inicio__gt=today).order_by('fecha_inicio')
-        historical_mems = self.object.memberships.filter(fecha_fin__lt=today).order_by('-fecha_fin')
-
-        if active_mems.exists():
-            context['membership'] = active_mems.order_by('-fecha_fin').first()
-            context['active_memberships'] = active_mems
-        else:
-            context['membership'] = None
-            context['active_memberships'] = []
-
-        context['queued_memberships'] = queued_mems
-        context['historical_memberships'] = historical_mems
-
         context['invoices'] = Invoice.objects.filter(client=self.object).order_by('-fecha_emision')[:10]
 
-        context['planes'] = Plan.objects.filter(is_active=True)
+        planes = Plan.objects.filter(is_active=True)
         context['latest_rate'] = ExchangeRate.get_latest()
         context['access_logs'] = self.object.access_logs.all()[:20]
+        context['billing_events'] = self.object.billing_events.select_related('created_by')[:15]
+        context['subscription_summary'] = get_profile_subscription_summary(self.object)
+        context.update(_charge_form_context(self.object, planes))
         context.update(client_form_context(client=self.object))
         return context
 
