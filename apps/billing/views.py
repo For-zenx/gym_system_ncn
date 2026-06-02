@@ -414,14 +414,14 @@ class SaleItemListView(PermissionRequiredMixin, ListView):
     context_object_name = "sale_items"
 
     def get_queryset(self):
-        return SaleItem.objects.filter(is_active=True).order_by("sort_order", "name", "id")
+        return SaleItem.objects.filter(is_active=True).order_by("name", "id")
 
 
 class SaleItemCreateView(PermissionRequiredMixin, CreateView):
     required_permission = "products.manage"
     model = SaleItem
     template_name = "billing/product_form.html"
-    fields = ["name", "description", "item_type", "price_usd", "sort_order"]
+    fields = ["name", "description", "item_type", "price_usd"]
     success_url = reverse_lazy("billing:product_list")
 
     def form_valid(self, form):
@@ -433,7 +433,7 @@ class SaleItemUpdateView(PermissionRequiredMixin, UpdateView):
     required_permission = "products.manage"
     model = SaleItem
     template_name = "billing/product_form.html"
-    fields = ["name", "description", "item_type", "price_usd", "sort_order"]
+    fields = ["name", "description", "item_type", "price_usd"]
     success_url = reverse_lazy("billing:product_list")
 
     def form_valid(self, form):

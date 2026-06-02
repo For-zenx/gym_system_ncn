@@ -13,7 +13,7 @@ from .models import (
 
 @admin.register(SaleItem)
 class SaleItemAdmin(admin.ModelAdmin):
-    list_display = ("name", "item_type", "price_usd", "is_active", "sort_order")
+    list_display = ("name", "item_type", "price_usd", "is_active")
     list_filter = ("item_type", "is_active")
 
 

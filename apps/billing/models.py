@@ -155,7 +155,7 @@ class SaleItem(models.Model):
     class Meta:
         verbose_name = "Producto o servicio"
         verbose_name_plural = "Productos y servicios"
-        ordering = ["sort_order", "name", "id"]
+        ordering = ["name", "id"]
 
     def __str__(self):
         return f"{self.name} (${self.price_usd})"
