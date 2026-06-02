@@ -1,5 +1,5 @@
 from urllib.parse import urlencode
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
@@ -77,6 +77,74 @@ def _get_safe_next_url(request, value):
     return ''
 
 
+def _normalize_checkout_origin(value):
+    if value in ("profile", "enrollment", "list"):
+        return value
+    return "profile"
+
+
+def _checkout_return_path(client, origin, next_url=""):
+    path = reverse("billing:charge_checkout", kwargs={"codigo_afiliado": client.codigo_afiliado})
+    query = urlencode({"origin": origin})
+    if next_url:
+        query = "{}&{}".format(query, urlencode({"next": next_url}))
+    return "{}?{}".format(path, query)
+
+
+def _checkout_back_context(client, origin, next_url=""):
+    if next_url:
+        return {"back_url": next_url, "back_label": "Volver"}
+    if origin == "enrollment":
+        return {
+            "back_url": reverse("enrollment"),
+            "back_label": "Volver al enrolamiento",
+        }
+    if origin == "list":
+        return {
+            "back_url": reverse("clients:client_list"),
+            "back_label": "Volver a afiliados",
+        }
+    return {
+        "back_url": reverse("clients:profile", kwargs={"codigo_afiliado": client.codigo_afiliado}),
+        "back_label": "Volver al perfil",
+    }
+
+
+def _process_membership_charge(request, client, origin):
+    plan_id = request.POST.get("plan_id")
+    if not plan_id:
+        messages.error(request, "Debe seleccionar un plan válido.")
+        return None
+
+    plan = get_object_or_404(Plan, id=plan_id)
+    apply_late_fee, late_fee_usd = parse_late_fee_from_post(request.POST)
+    payment_cut_day, payment_cut_motivo = parse_payment_cut_from_post(request.POST)
+
+    try:
+        result = register_membership_renewal(
+            client,
+            plan,
+            apply_late_fee=apply_late_fee,
+            late_fee_usd=late_fee_usd,
+            acting_user=request.user,
+            payment_cut_day=payment_cut_day,
+            payment_cut_motivo=payment_cut_motivo,
+        )
+        for warning in result.warnings:
+            if warning == "flexible_on_suspended_subscription":
+                messages.warning(
+                    request,
+                    "Pase flexible vendido con suscripción fija suspendida. El afiliado tiene acceso por el pase.",
+                )
+        success_url = reverse("billing:payment_success", kwargs={"pk": result.invoice.pk})
+        return redirect("{}?{}".format(success_url, urlencode({"origin": origin})))
+    except ValidationError as e:
+        messages.error(request, str(e))
+    except Exception as e:
+        messages.error(request, f"Error al registrar el cobro: {str(e)}")
+    return None
+
+
 class ExchangeRateUpdateView(PermissionRequiredMixin, View):
     required_permission = "settings.exchange_rate"
     def post(self, request):
@@ -99,47 +167,67 @@ class ExchangeRateUpdateView(PermissionRequiredMixin, View):
         next_url = request.POST.get('next') or request.META.get('HTTP_REFERER', '/')
         return redirect(next_url)
 
-class RenewPlanView(PermissionRequiredMixin, View):
+class ChargeCheckoutView(PermissionRequiredMixin, View):
     required_permission = "billing.charge"
+
+    def get(self, request, codigo_afiliado):
+        client = get_object_or_404(Client, codigo_afiliado=codigo_afiliado)
+        origin = _normalize_checkout_origin(request.GET.get("origin", "profile"))
+        next_url = _get_safe_next_url(request, request.GET.get("next", ""))
+        planes = Plan.objects.filter(is_active=True)
+
+        context = {
+            "client": client,
+            "latest_rate": ExchangeRate.get_latest(),
+            "origin": origin,
+            "next_url": next_url,
+            "is_enrollment": origin == "enrollment",
+            "checkout_return_url": _checkout_return_path(client, origin, next_url),
+            "page_heading": "Cobro inicial" if origin == "enrollment" else "Registrar cobro",
+            "submit_label": "Cobrar e imprimir" if origin == "enrollment" else "Confirmar cobro",
+        }
+        context.update(_checkout_back_context(client, origin, next_url))
+        context.update(_charge_form_context(client, planes))
+
+        from apps.clients.validation import client_form_context
+        from apps.billing.services import get_profile_subscription_summary
+
+        context.update(client_form_context(client=client))
+        context["subscription_summary"] = get_profile_subscription_summary(client)
+        return render(request, "billing/charge_checkout.html", context)
+
     def post(self, request, codigo_afiliado):
         client = get_object_or_404(Client, codigo_afiliado=codigo_afiliado)
-        plan_id = request.POST.get('plan_id')
+        origin = _normalize_checkout_origin(
+            request.POST.get("origin", request.GET.get("origin", "profile"))
+        )
+        next_url = _get_safe_next_url(request, request.POST.get("next", ""))
 
-        if not plan_id:
-            messages.error(request, "Debe seleccionar un plan válido.")
-            return redirect('clients:profile', codigo_afiliado=codigo_afiliado)
+        response = _process_membership_charge(request, client, origin)
+        if response is not None:
+            return response
 
-        plan = get_object_or_404(Plan, id=plan_id)
-        apply_late_fee, late_fee_usd = parse_late_fee_from_post(request.POST)
-        payment_cut_day, payment_cut_motivo = parse_payment_cut_from_post(request.POST)
+        return redirect(_checkout_return_path(client, origin, next_url))
 
-        try:
-            result = register_membership_renewal(
+
+class RenewPlanView(PermissionRequiredMixin, View):
+    """DEPRECATED: reemplazado por billing:charge_checkout — conservado para POST legacy."""
+
+    required_permission = "billing.charge"
+
+    def post(self, request, codigo_afiliado):
+        client = get_object_or_404(Client, codigo_afiliado=codigo_afiliado)
+        origin = _normalize_checkout_origin(request.POST.get("origin", "profile"))
+        response = _process_membership_charge(request, client, origin)
+        if response is not None:
+            return response
+        return redirect(
+            _checkout_return_path(
                 client,
-                plan,
-                apply_late_fee=apply_late_fee,
-                late_fee_usd=late_fee_usd,
-                acting_user=request.user,
-                payment_cut_day=payment_cut_day,
-                payment_cut_motivo=payment_cut_motivo,
+                origin,
+                _get_safe_next_url(request, request.POST.get("next", "")),
             )
-            for warning in result.warnings:
-                if warning == "flexible_on_suspended_subscription":
-                    messages.warning(
-                        request,
-                        "Pase flexible vendido con suscripción fija suspendida. El afiliado tiene acceso por el pase.",
-                    )
-            success_url = reverse(
-                "billing:payment_success",
-                kwargs={"pk": result.invoice.pk},
-            )
-            return redirect("{}?origin=profile".format(success_url))
-        except ValidationError as e:
-            messages.error(request, str(e))
-        except Exception as e:
-            messages.error(request, f"Error al asignar plan: {str(e)}")
-
-        return redirect('clients:profile', codigo_afiliado=codigo_afiliado)
+        )
 
 
 class PaymentPeriodPreviewView(PermissionRequiredMixin, View):
@@ -185,10 +273,10 @@ class PaymentSuccessView(PermissionRequiredMixin, DetailView):
         context["origin"] = origin
         if origin == "enrollment":
             context["back_url"] = reverse(
-                "enrollment_billing",
+                "clients:profile",
                 kwargs={"codigo_afiliado": self.object.client.codigo_afiliado},
             )
-            context["back_label"] = "Volver a facturación"
+            context["back_label"] = "Ver perfil del afiliado"
         else:
             context["back_url"] = reverse(
                 "clients:profile",

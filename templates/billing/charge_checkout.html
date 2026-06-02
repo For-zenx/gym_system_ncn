@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_heading }} - Perfect Line II{% endblock %}
+{% block page_title %}{{ page_heading }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3.2">
+<link rel="stylesheet" href="{% static 'css/charge_checkout.css' %}?v=1.2">
+{% endblock %}
+
+{% block content %}
+<div class="charge-checkout-page">
+    <div class="charge-checkout-top">
+        {% if is_enrollment %}
+        <p class="charge-checkout-step">Enrolamiento · Paso 3 · Cobro inicial</p>
+        {% endif %}
+        <a href="{{ back_url }}" class="btn btn-secondary">&larr; {{ back_label }}</a>
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}" style="margin-bottom: 1rem;">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="charge-checkout-stack">
+        <div class="charge-checkout-client-card">
+            <p class="charge-checkout-client-label">Afiliado</p>
+            {% include 'billing/includes/charge_checkout_client_bar.html' %}
+        </div>
+
+        <div class="charge-checkout-charge-card">
+            <h3 class="charge-checkout-charge-title">Cobro de membresía</h3>
+
+            {% if planes %}
+            <form method="POST" action="{% url 'billing:charge_checkout' client.codigo_afiliado %}">
+                {% csrf_token %}
+                <input type="hidden" name="origin" value="{{ origin }}">
+                {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+
+                {% include 'billing/includes/payment_fields.html' %}
+
+                <button type="submit" class="btn btn-primary charge-checkout-submit" id="btnConfirm" disabled>
+                    {{ submit_label }}
+                </button>
+            </form>
+            {% else %}
+            <p class="charge-checkout-empty">No hay planes disponibles para este afiliado en este momento.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% include 'billing/includes/charge_checkout_edit_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/cut_date_motivo.js' %}?v=1.0"></script>
+<script src="{% static 'js/billing_payment.js' %}?v=1.5"></script>
+<script>
+    const tasaDiaStr = "{{ latest_rate.tasa_ves|default:'0' }}".replace(',', '.');
+    const tasaDia = parseFloat(tasaDiaStr);
+
+    {% if planes %}
+    if (tasaDia <= 0 || isNaN(tasaDia)) {
+        alert("Atención: No hay una tasa de cambio configurada en el sistema para el día de hoy.");
+    }
+
+    initBillingPayment({
+        selectId: 'plan_id',
+        confirmId: 'btnConfirm',
+        priceUsdId: 'price_usd',
+        priceVesId: 'price_ves',
+        totalVesId: 'price_total_ves',
+        periodBoxId: 'payment-period-box',
+        periodTextId: 'payment-period-text',
+        alertSuspendedId: 'payment-alert-suspended',
+        alertFlexibleId: 'payment-alert-flexible',
+        lateFeeSectionId: 'payment-late-fee-section',
+        lateFeeCheckId: 'apply_late_fee',
+        lateFeeInputId: 'late_fee_usd',
+        lateFeeVesId: 'payment-late-fee-ves',
+        tasaDia: tasaDia,
+        previewUrl: "{% url 'billing:payment_preview' client.codigo_afiliado %}",
+        billingContext: {{ billing_context_json|safe }},
+        planPreviews: {{ plan_previews_json|safe }},
+        emptyUsdLabel: '$0.00',
+        usdPrefix: '',
+    });
+    {% endif %}
+
+    {% if 'clients.edit' in user_permissions %}
+    function openEditModal() {
+        document.getElementById('editModal').classList.add('show');
+    }
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('show');
+    }
+    {% endif %}
+</script>
+{% endblock %}

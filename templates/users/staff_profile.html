@@ -5,13 +5,9 @@
 {% block page_title %}Mi perfil{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3.2">
 <link rel="stylesheet" href="{% static 'css/config.css' %}?v=1.2">
 <style>
-.profile-page {
-    max-width: 800px;
-    width: 100%;
-    margin: 0 auto;
-}
 .profile-perm-list {
     list-style: none;
     margin: 0;
@@ -33,7 +29,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="profile-page">
+<div class="profile-container">
     {% if messages %}
     {% for message in messages %}
     <div class="alert alert-{{ message.tags|default:'success' }}" style="margin-bottom: 1rem;">{{ message }}</div>

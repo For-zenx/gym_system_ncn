@@ -125,8 +125,8 @@
 
             <div class="profile-caja-actions">
                 {% if 'billing.charge' in user_permissions %}
-                {% if planes %}
-                <button type="button" class="btn btn-primary" onclick="openPaymentModal()">Registrar cobro</button>
+                {% if has_chargeable_plans %}
+                <a href="{% url 'billing:charge_checkout' client.codigo_afiliado %}?origin=profile" class="btn btn-primary">Registrar cobro</a>
                 {% else %}
                 <button type="button" class="btn btn-primary" disabled title="No hay planes disponibles para cobrar">Registrar cobro</button>
                 {% endif %}
@@ -208,29 +208,6 @@
         </div>
     </div>
 
-    {% if 'billing.charge' in user_permissions %}
-    <div class="modal-overlay" id="paymentModal">
-        <div class="modal-content modal-content-wide">
-            <h2>Registrar cobro</h2>
-            {% if planes %}
-            <form method="POST" action="{% url 'billing:renew_plan' client.codigo_afiliado %}">
-                {% csrf_token %}
-                {% include 'billing/includes/payment_fields.html' %}
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btnConfirm" disabled style="padding: 0.75rem 2rem; font-size: 1rem;">Generar Factura</button>
-                </div>
-            </form>
-            {% else %}
-            <p class="profile-modal-empty">No hay planes disponibles para este afiliado en este momento.</p>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">Cerrar</button>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
     {% if 'billing.change_cut_date' in user_permissions %}
     <div class="modal-overlay" id="cutDateModal">
         <div class="modal-content">
@@ -301,13 +278,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/cut_date_motivo.js' %}?v=1.0"></script>
-{% if 'billing.charge' in user_permissions %}
-<script src="{% static 'js/billing_payment.js' %}?v=1.4"></script>
-{% endif %}
 <script>
-    const tasaDiaStr = "{{ latest_rate.tasa_ves|default:'0' }}".replace(',', '.');
-    const tasaDia = parseFloat(tasaDiaStr);
-    let billingPayment;
     let cutDateMotivo = null;
 
     {% if 'billing.change_cut_date' in user_permissions %}
@@ -316,21 +287,6 @@
         customWrapId: 'cut_motivo_custom_wrap',
         customId: 'cut_motivo_custom',
     });
-    {% endif %}
-
-    {% if 'billing.charge' in user_permissions %}
-    function openPaymentModal() {
-        if (tasaDia <= 0 || isNaN(tasaDia)) {
-            alert("Atención: No hay una tasa de cambio configurada en el sistema para el día de hoy.");
-            return;
-        }
-        document.getElementById('paymentModal').classList.add('show');
-    }
-
-    function closePaymentModal() {
-        document.getElementById('paymentModal').classList.remove('show');
-        if (billingPayment) billingPayment.reset();
-    }
     {% endif %}
 
     {% if 'billing.change_cut_date' in user_permissions %}
@@ -364,26 +320,5 @@
         });
     });
 
-    {% if 'billing.charge' in user_permissions and planes %}
-    billingPayment = initBillingPayment({
-        selectId: 'plan_id',
-        confirmId: 'btnConfirm',
-        priceUsdId: 'price_usd',
-        priceVesId: 'price_ves',
-        totalVesId: 'price_total_ves',
-        periodBoxId: 'payment-period-box',
-        periodTextId: 'payment-period-text',
-        alertSuspendedId: 'payment-alert-suspended',
-        alertFlexibleId: 'payment-alert-flexible',
-        lateFeeSectionId: 'payment-late-fee-section',
-        lateFeeCheckId: 'apply_late_fee',
-        lateFeeInputId: 'late_fee_usd',
-        lateFeeVesId: 'payment-late-fee-ves',
-        tasaDia: tasaDia,
-        previewUrl: "{% url 'billing:payment_preview' client.codigo_afiliado %}",
-        billingContext: {{ billing_context_json|safe }},
-        planPreviews: {{ plan_previews_json|safe }},
-    });
-    {% endif %}
 </script>
 {% endblock %}

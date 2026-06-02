@@ -8,7 +8,7 @@ from .models import Client
 from .validation import validate_client_data, client_form_context, apply_client_fields
 from apps.billing.models import Plan, ExchangeRate, Invoice, ClientBillingEvent
 from apps.billing.services import get_profile_subscription_summary
-from apps.billing.views import _charge_form_context
+from apps.billing.services import get_chargeable_plans
 from apps.users.mixins import PermissionRequiredMixin
 
 
@@ -59,12 +59,14 @@ class ClientProfileView(PermissionRequiredMixin, DetailView):
 
         context['invoices'] = Invoice.objects.filter(client=self.object).order_by('-fecha_emision')[:10]
 
-        planes = Plan.objects.filter(is_active=True)
+        active_plans = Plan.objects.filter(is_active=True)
         context['latest_rate'] = ExchangeRate.get_latest()
         context['access_logs'] = self.object.access_logs.all()[:20]
         context['billing_events'] = self.object.billing_events.select_related('created_by')[:15]
         context['subscription_summary'] = get_profile_subscription_summary(self.object)
-        context.update(_charge_form_context(self.object, planes))
+        context['has_chargeable_plans'] = bool(
+            get_chargeable_plans(self.object, active_plans)
+        )
         context.update(client_form_context(client=self.object))
         return context
 

@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    ChargeCheckoutView,
     RenewPlanView,
     ChangeCutDateView,
     PaymentPeriodPreviewView,
@@ -18,6 +19,7 @@ from .views import (
 app_name = 'billing'
 
 urlpatterns = [
+    path('cobro/<str:codigo_afiliado>/', ChargeCheckoutView.as_view(), name='charge_checkout'),
     path('renovar/<str:codigo_afiliado>/', RenewPlanView.as_view(), name='renew_plan'),
     path('preview-cobro/<str:codigo_afiliado>/', PaymentPeriodPreviewView.as_view(), name='payment_preview'),
     path('cobro-exito/<int:pk>/', PaymentSuccessView.as_view(), name='payment_success'),

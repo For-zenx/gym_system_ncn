@@ -1,0 +1,25 @@
+<div class="charge-checkout-client-bar">
+    <div class="charge-checkout-client-photo">
+        {% if client.foto_frente %}
+        <img src="{{ client.foto_frente.url }}" alt="Foto de {{ client.nombre }}">
+        {% else %}
+        <span class="charge-checkout-client-photo-empty">—</span>
+        {% endif %}
+    </div>
+    <div class="charge-checkout-client-info">
+        <div class="charge-checkout-client-title-row">
+            <h2 class="charge-checkout-client-name">{{ client.nombre }}</h2>
+            {% if 'clients.edit' in user_permissions %}
+            <button type="button" class="btn btn-secondary charge-checkout-edit-btn" onclick="openEditModal()">
+                Corregir datos
+            </button>
+            {% endif %}
+        </div>
+        <dl class="charge-checkout-client-meta">
+            <div><dt>C.I.</dt><dd>{{ client.cedula }}</dd></div>
+            <div><dt>Código</dt><dd>{{ client.codigo_afiliado }}</dd></div>
+            <div><dt>Teléfono</dt><dd>{{ client.telefono|default:"N/A" }}</dd></div>
+            <div><dt>Corte</dt><dd>{{ subscription_summary.cut_date_display }}</dd></div>
+        </dl>
+    </div>
+</div>

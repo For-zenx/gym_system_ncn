@@ -52,6 +52,17 @@
             return getDefaultCutDay();
         }
 
+        function ensurePaymentCutMotivo() {
+            if (paymentCutMotivo || !cutMotivoPreset || !window.initCutDateMotivoFields) {
+                return;
+            }
+            paymentCutMotivo = initCutDateMotivoFields({
+                presetId: 'payment_cut_motivo_preset',
+                customWrapId: 'payment_cut_motivo_custom_wrap',
+                customId: 'payment_cut_motivo_custom',
+            });
+        }
+
         function updateCutMotivoVisibility() {
             if (!cutMotivoSection || !cutDayDisplay || !cutDayInitial) return;
             const changed = parseInt(cutDayDisplay.value, 10) !== parseInt(cutDayInitial.value, 10);
@@ -61,17 +72,9 @@
                 cutMotivoPreset.required = showMotivo;
                 if (!showMotivo && paymentCutMotivo) {
                     paymentCutMotivo.reset();
-                } else if (showMotivo && !paymentCutMotivo && window.initCutDateMotivoFields) {
-                    paymentCutMotivo = initCutDateMotivoFields({
-                        presetId: 'payment_cut_motivo_preset',
-                        customWrapId: 'payment_cut_motivo_custom_wrap',
-                        customId: 'payment_cut_motivo_custom',
-                    });
+                } else if (showMotivo) {
+                    ensurePaymentCutMotivo();
                 }
-            }
-            if (cutMotivoCustom) {
-                cutMotivoCustom.required = showMotivo &&
-                    cutMotivoPreset && cutMotivoPreset.value === '__other__';
             }
         }
 
@@ -282,6 +285,8 @@
         if (cutDayEditBtn) {
             cutDayEditBtn.addEventListener('click', enableCutDayEditor);
         }
+
+        ensurePaymentCutMotivo();
 
         updatePrice();
 

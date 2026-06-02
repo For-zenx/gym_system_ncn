@@ -1,0 +1,51 @@
+{% if 'clients.edit' in user_permissions %}
+<div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+        <h2>Corregir datos personales</h2>
+        <form method="POST" action="{% url 'clients:edit_client' client.codigo_afiliado %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ checkout_return_url }}">
+
+            <div class="form-group">
+                <label for="edit_nombre">Nombre completo</label>
+                <input type="text" id="edit_nombre" name="nombre" value="{{ form_nombre }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="edit_cedula_numero">Cédula / RIF</label>
+                <div class="cedula-input-group">
+                    <select id="edit_cedula_prefix" name="cedula_prefix" aria-label="Tipo de documento">
+                        <option value="V-" {% if form_cedula_prefix == 'V-' %}selected{% endif %}>V-</option>
+                        <option value="J-" {% if form_cedula_prefix == 'J-' %}selected{% endif %}>J-</option>
+                    </select>
+                    <input type="text" id="edit_cedula_numero" name="cedula_numero" required inputmode="numeric" placeholder="12345678" value="{{ form_cedula_numero }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="edit_telefono">Número de teléfono</label>
+                <input type="text" id="edit_telefono" name="telefono" value="{{ form_telefono }}">
+            </div>
+
+            <div class="form-group">
+                <label for="edit_fecha_nacimiento">Fecha de nacimiento (opcional)</label>
+                <input type="date" id="edit_fecha_nacimiento" name="fecha_nacimiento" value="{{ form_fecha_nacimiento }}">
+            </div>
+
+            <div class="form-group">
+                <label for="edit_sexo">Sexo (opcional)</label>
+                <select id="edit_sexo" name="sexo">
+                    <option value="" {% if not form_sexo %}selected{% endif %}>Sin especificar</option>
+                    <option value="M" {% if form_sexo == 'M' %}selected{% endif %}>Masculino</option>
+                    <option value="F" {% if form_sexo == 'F' %}selected{% endif %}>Femenino</option>
+                </select>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 2rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">Guardar cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}

@@ -4,11 +4,12 @@
 {% block page_title %}Configuración de Planes{% endblock %}
 
 {% block content %}
-{% if 'plans.create' in user_permissions %}
-<div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 2rem;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary">&larr; Volver</a>
+    {% if 'plans.create' in user_permissions %}
     <a href="{% url 'billing:plan_create' %}" class="btn btn-primary">+ Nuevo Plan</a>
+    {% endif %}
 </div>
-{% endif %}
 
 {% if messages %}
 <div class="messages">
