@@ -743,3 +743,27 @@ def _create_fixed_membership(client, plan, hoy):
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin,
     )
+
+
+def update_late_fee_amount_usd(amount_raw):
+    amount_str = (amount_raw or "").strip().replace(",", ".")
+    if not amount_str:
+        raise ValidationError("El monto de la multa no puede estar vacío.")
+    try:
+        amount = Decimal(amount_str)
+    except Exception as exc:
+        raise ValidationError("El monto de la multa no es un número válido.") from exc
+    if amount < 0:
+        raise ValidationError("El monto de la multa no puede ser negativo.")
+
+    settings_obj = BillingSettings.get_settings()
+    settings_obj.multa_monto_usd = amount
+    settings_obj.save(update_fields=["multa_monto_usd", "updated_at"])
+    return settings_obj
+
+
+@transaction.atomic
+def delete_invoice(invoice):
+    nro_control = invoice.nro_control
+    invoice.delete()
+    return nro_control

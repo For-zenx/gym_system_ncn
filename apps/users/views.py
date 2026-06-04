@@ -13,6 +13,8 @@ from .forms_helpers import build_granted_permission_groups, build_permission_gro
 from .mixins import PermissionRequiredMixin
 from .models import StaffRole
 from .permissions import has_permission
+from apps.billing.models import BillingSettings
+from apps.billing.services import update_late_fee_amount_usd
 from .services import (
     create_staff_role,
     create_staff_user,
@@ -92,8 +94,32 @@ class StaffProfileView(LoginRequiredMixin, View):
 
 
 class ConfigHomeView(AnyPermissionRequiredMixin, TemplateView):
-    required_any_permissions = ("users.view", "roles.manage")
+    required_any_permissions = ("users.view", "roles.manage", "settings.billing")
     template_name = "users/config_home.html"
+
+
+class BillingSettingsView(PermissionRequiredMixin, View):
+    required_permission = "settings.billing"
+
+    def get(self, request):
+        settings_obj = BillingSettings.get_settings()
+        return render(
+            request,
+            "users/billing_settings.html",
+            {
+                "multa_monto_usd": settings_obj.multa_monto_usd,
+                "updated_at": settings_obj.updated_at,
+            },
+        )
+
+    def post(self, request):
+        try:
+            update_late_fee_amount_usd(request.POST.get("multa_monto_usd"))
+            messages.success(request, "Monto de multa actualizado correctamente.")
+        except ValidationError as exc:
+            for msg in exc.messages:
+                messages.error(request, msg)
+        return redirect("users:billing_settings")
 
 
 class RoleListView(PermissionRequiredMixin, ListView):

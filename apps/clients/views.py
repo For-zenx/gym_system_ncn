@@ -3,8 +3,8 @@ from django.views.generic import DetailView, ListView
 from django.views import View
 from django.contrib import messages
 from django.db.models import Q
-from datetime import date
 from .models import Client
+from .services import delete_client
 from .validation import validate_client_data, client_form_context, apply_client_fields
 from apps.billing.models import Plan, ExchangeRate, Invoice, ClientBillingEvent
 from apps.billing.services import get_profile_subscription_summary
@@ -29,19 +29,10 @@ class ClientListView(PermissionRequiredMixin, ListView):
                 Q(nombre__icontains=q)
             )
 
-        if self.request.GET.get('moroso') == '1':
-            today = date.today()
-            queryset = queryset.filter(fecha_corte_dia__isnull=False).exclude(
-                memberships__plan__billing_type=Plan.BillingType.FIXED,
-                memberships__fecha_inicio__lte=today,
-                memberships__fecha_fin__gte=today,
-            ).distinct()
-
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['moroso_filter'] = self.request.GET.get('moroso') == '1'
         context['search_query'] = self.request.GET.get('q', '')
         return context
 
@@ -99,3 +90,27 @@ class EditClientView(PermissionRequiredMixin, View):
         if next_url:
             return redirect(next_url)
         return redirect('clients:profile', codigo_afiliado=codigo_afiliado)
+
+
+class ClientDeleteView(PermissionRequiredMixin, View):
+    required_permission = "clients.delete"
+
+    def post(self, request, codigo_afiliado):
+        client = get_object_or_404(Client, codigo_afiliado=codigo_afiliado)
+
+        if request.POST.get("confirm_delete") != "1":
+            messages.error(request, "Debes confirmar la eliminación del afiliado.")
+            return redirect("clients:profile", codigo_afiliado=codigo_afiliado)
+
+        typed_code = (request.POST.get("confirm_codigo") or "").strip()
+        if typed_code != client.codigo_afiliado:
+            messages.error(request, "El código de afiliado no coincide. No se eliminó el registro.")
+            return redirect("clients:profile", codigo_afiliado=codigo_afiliado)
+
+        nombre = client.nombre
+        delete_client(client)
+        messages.success(
+            request,
+            f"Afiliado {nombre} eliminado. Las facturas emitidas permanecen en el historial con datos históricos.",
+        )
+        return redirect("clients:client_list")

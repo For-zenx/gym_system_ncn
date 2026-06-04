@@ -162,7 +162,7 @@ function showIdleScreen() {
     idleOverlay.classList.remove('hidden');
     const idleSubtitle = idleOverlay.querySelector('.idle-subtitle');
     if (idleSubtitle) {
-        idleSubtitle.textContent = 'Conectada — en espera de la cajera';
+        idleSubtitle.textContent = 'Conectada — en espera del encargado en caja';
     }
     faceGuide.classList.remove('active');
     hudInstruction.classList.add('hidden');

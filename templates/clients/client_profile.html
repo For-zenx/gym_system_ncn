@@ -5,8 +5,7 @@
 {% block page_title %}Perfil del Afiliado{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3.2">
-<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=1.4">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3.3">
 {% endblock %}
 
 {% block content %}
@@ -207,10 +206,21 @@
         </div>
     </div>
 
+    {% if 'clients.delete' in user_permissions %}
+    <div class="card profile-danger-card">
+        <h3 class="profile-section-title">Zona de riesgo</h3>
+        <p class="profile-danger-text">
+            Eliminar el afiliado borra membresías, historial de accesos y fotos biométricas.
+            Las facturas ya emitidas permanecen en el historial con los datos del receptor guardados al momento del cobro.
+        </p>
+        <button type="button" class="btn btn-danger" onclick="openDeleteClientModal()">Eliminar afiliado</button>
+    </div>
+    {% endif %}
+
     {% if 'billing.change_cut_date' in user_permissions %}
     <div class="modal-overlay" id="cutDateModal">
         <div class="modal-content">
-            <h2>Cambiar fecha de corte</h2>
+            {% include "includes/modal_header.html" with modal_title="Cambiar fecha de corte" %}
             <form method="POST" action="{% url 'billing:change_cut_date' client.codigo_afiliado %}">
                 {% csrf_token %}
                 <div class="form-group">
@@ -227,10 +237,38 @@
     </div>
     {% endif %}
 
+    {% if 'clients.delete' in user_permissions %}
+    <div class="modal-overlay" id="deleteClientModal">
+        <div class="modal-content">
+            {% include "includes/modal_header.html" with modal_title="Eliminar afiliado" %}
+            <p class="profile-danger-text" style="margin-top: 0;">
+                Esta acción no se puede deshacer. Se eliminarán datos del afiliado <strong>{{ client.nombre }}</strong>
+                ({{ client.codigo_afiliado }}).
+            </p>
+            <form method="POST" action="{% url 'clients:delete_client' client.codigo_afiliado %}">
+                {% csrf_token %}
+                <input type="hidden" name="confirm_delete" value="1">
+                <div class="form-group">
+                    <label for="confirm_codigo">Escribe el código de afiliado para confirmar</label>
+                    <input type="text" id="confirm_codigo" name="confirm_codigo" required autocomplete="off" placeholder="{{ client.codigo_afiliado }}">
+                </div>
+                <label class="profile-danger-ack">
+                    <input type="checkbox" id="delete_client_ack" required>
+                    <span>Entiendo que las facturas históricas permanecerán sin vínculo al perfil.</span>
+                </label>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeleteClientModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Eliminar definitivamente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     {% if 'clients.edit' in user_permissions %}
     <div class="modal-overlay" id="editModal">
         <div class="modal-content">
-            <h2>Editar Datos Personales</h2>
+            {% include "includes/modal_header.html" with modal_title="Editar Datos Personales" %}
             <form method="POST" action="{% url 'clients:edit_client' client.codigo_afiliado %}">
                 {% csrf_token %}
                 <div class="form-group">
@@ -276,6 +314,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/modal.js' %}?v=1.0"></script>
 <script src="{% static 'js/cut_date_motivo.js' %}?v=1.0"></script>
 <script>
     let cutDateMotivo = null;
@@ -309,6 +348,20 @@
     }
     {% endif %}
 
+    {% if 'clients.delete' in user_permissions %}
+    function openDeleteClientModal() {
+        document.getElementById('deleteClientModal').classList.add('show');
+        var codeInput = document.getElementById('confirm_codigo');
+        if (codeInput) codeInput.value = '';
+        var ack = document.getElementById('delete_client_ack');
+        if (ack) ack.checked = false;
+    }
+
+    function closeDeleteClientModal() {
+        document.getElementById('deleteClientModal').classList.remove('show');
+    }
+    {% endif %}
+
     document.querySelectorAll('.profile-tab-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var tab = btn.getAttribute('data-tab');
@@ -318,6 +371,16 @@
             document.getElementById('tab-' + tab).classList.add('is-active');
         });
     });
+
+    {% if 'billing.change_cut_date' in user_permissions %}
+    bindDismissibleModalById('cutDateModal', { onClose: closeCutDateModal });
+    {% endif %}
+    {% if 'clients.delete' in user_permissions %}
+    bindDismissibleModalById('deleteClientModal', { onClose: closeDeleteClientModal });
+    {% endif %}
+    {% if 'clients.edit' in user_permissions %}
+    bindDismissibleModalById('editModal', { onClose: closeEditModal });
+    {% endif %}
 
 </script>
 {% endblock %}

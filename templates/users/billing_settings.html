@@ -1,0 +1,43 @@
+{% extends "users/config_base.html" %}
+
+{% block title %}Multa por morosidad - Configuración{% endblock %}
+{% block config_heading %}Multa por morosidad{% endblock %}
+
+{% block config_content %}
+<p class="config-intro">
+    Monto sugerido en USD al reactivar una suscripción mensual suspendida. En caja el encargado puede aplicar u omitir la multa en cada cobro.
+</p>
+
+<form method="post" class="card config-form-card">
+    {% csrf_token %}
+
+    <div class="config-form-section">
+        <div class="config-form-section-header">
+            <h3>Monto de multa</h3>
+            <p>Se convierte a bolívares con la tasa vigente al momento del cobro.</p>
+        </div>
+        <div class="config-form-grid" style="grid-template-columns: minmax(0, 280px);">
+            <div class="config-form-group">
+                <label for="multa_monto_usd">Multa sugerida (USD)</label>
+                <input
+                    type="text"
+                    id="multa_monto_usd"
+                    name="multa_monto_usd"
+                    value="{{ multa_monto_usd }}"
+                    required
+                    inputmode="decimal"
+                    autocomplete="off"
+                >
+            </div>
+        </div>
+        {% if updated_at %}
+        <p class="config-muted" style="margin: 0.75rem 0 0;">Última actualización: {{ updated_at|date:"d/m/Y H:i" }}</p>
+        {% endif %}
+    </div>
+
+    <div class="config-form-actions">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a href="{% url 'users:config_home' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

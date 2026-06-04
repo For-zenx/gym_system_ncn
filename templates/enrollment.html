@@ -5,7 +5,7 @@
 {% block page_title %}Enrolamiento de Nuevo Afiliado{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=1.8">
+<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=1.9">
 {% endblock %}
 
 {% block content %}
@@ -102,7 +102,11 @@
 </div>
 
 <div id="enrollment-process-modal" class="modal-overlay enrollment-process-modal" aria-hidden="true">
-    <div class="modal-content modal-content-narrow enrollment-process-card">
+    <div class="modal-content modal-content-narrow enrollment-process-card" role="dialog" aria-modal="true">
+        <div class="modal-header">
+            <h2>Enrolamiento</h2>
+            <button type="button" class="modal-close" data-modal-close id="enrollment-process-close-x" aria-label="Cerrar" hidden>&times;</button>
+        </div>
         <div id="enrollment-process-loading" class="enrollment-process-state">
             <div class="enrollment-spinner" aria-hidden="true"></div>
             <h2 class="enrollment-process-title">Procesando enrolamiento</h2>
@@ -126,6 +130,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/modal.js' %}?v=1.0"></script>
 <script>
     const offlineOverlay = document.getElementById('tablet-offline-overlay');
     const ENROLLMENT_TABLET_ROLE = 'enrollment';
@@ -221,15 +226,29 @@
         processError.classList.toggle('hidden', state !== 'error');
     }
 
+    var processCloseX = document.getElementById('enrollment-process-close-x');
+
+    function setEnrollmentDismissEnabled(enabled) {
+        if (processCloseX) {
+            processCloseX.hidden = !enabled;
+        }
+    }
+
+    function enrollmentDismissAllowed() {
+        return processError && !processError.classList.contains('hidden');
+    }
+
     function openProcessModal(state) {
         showProcessState(state);
         processModal.classList.add('show');
         processModal.setAttribute('aria-hidden', 'false');
+        setEnrollmentDismissEnabled(state === 'error');
     }
 
     function closeProcessModal() {
         processModal.classList.remove('show');
         processModal.setAttribute('aria-hidden', 'true');
+        setEnrollmentDismissEnabled(false);
         if (saveButton) {
             saveButton.disabled = false;
         }
@@ -238,6 +257,11 @@
     if (processCloseBtn) {
         processCloseBtn.addEventListener('click', closeProcessModal);
     }
+
+    bindDismissibleModal(processModal, {
+        onClose: closeProcessModal,
+        canClose: enrollmentDismissAllowed,
+    });
 
     if (enrollmentForm) {
         enrollmentForm.addEventListener('submit', function (event) {

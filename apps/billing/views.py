@@ -15,6 +15,7 @@ from .models import Plan, Membership, ExchangeRate, Invoice, SaleItem
 from .services import (
     register_checkout,
     change_client_cut_date,
+    delete_invoice,
     parse_late_fee_from_post,
     parse_payment_cut_from_post,
     parse_payment_cut_day_from_post,
@@ -536,3 +537,24 @@ class PrintInvoiceActionView(PermissionRequiredMixin, View):
             messages.error(request, f"Error al imprimir la factura: {str(e)}")
 
         return redirect(detail_url)
+
+
+class InvoiceDeleteView(PermissionRequiredMixin, View):
+    required_permission = "billing.delete_invoice"
+
+    def post(self, request, pk):
+        invoice = get_object_or_404(Invoice, pk=pk)
+        detail_url = reverse("billing:invoice_detail", kwargs={"pk": pk})
+        next_url = _get_safe_next_url(request, request.POST.get("next", ""))
+        if next_url:
+            detail_url = f"{detail_url}?{urlencode({'next': next_url})}"
+
+        if request.POST.get("confirm_delete") != "1":
+            messages.error(request, "Debes confirmar la eliminación de la factura.")
+            return redirect(detail_url)
+
+        nro_control = delete_invoice(invoice)
+        messages.success(request, f"Factura {nro_control} eliminada del sistema.")
+        if next_url:
+            return redirect(next_url)
+        return redirect("billing:invoice_list")

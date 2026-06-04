@@ -13,7 +13,7 @@ def add_products_permissions(apps, schema_editor):
                 if code not in perms:
                     perms.append(code)
                     changed = True
-        elif role.name == "Cajera":
+        elif role.name in ("Cajera", "Encargado en caja"):
             if "products.view" not in perms:
                 perms.append("products.view")
                 changed = True

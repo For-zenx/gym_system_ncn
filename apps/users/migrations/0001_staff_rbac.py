@@ -29,7 +29,7 @@ def seed_roles_and_profiles(apps, schema_editor):
         admin_role.save(update_fields=["permissions", "is_system"])
 
     cashier_role, _ = StaffRole.objects.get_or_create(
-        name="Cajera",
+        name="Encargado en caja",
         defaults={
             "description": "Operación diaria de caja, afiliados y consultas.",
             "permissions": CASHIER_PERMISSION_CODES,

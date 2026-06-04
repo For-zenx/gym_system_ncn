@@ -12,14 +12,21 @@
     {% if 'users.view' in user_permissions %}
     <a href="{% url 'users:staff_user_list' %}" class="card config-hub-card">
         <h3>Usuarios del sistema</h3>
-        <p>Crear cuentas de cajera u operadores, asignar permisos individuales y activar o desactivar acceso.</p>
+        <p>Crear cuentas de encargado en caja u otros operadores, asignar permisos individuales y activar o desactivar acceso.</p>
     </a>
     {% endif %}
 
     {% if 'roles.manage' in user_permissions %}
     <a href="{% url 'users:role_list' %}" class="card config-hub-card">
         <h3>Plantillas de permisos</h3>
-        <p>Definir presets reutilizables (por ejemplo Cajera) para cargar permisos al crear una cuenta.</p>
+        <p>Definir presets reutilizables (por ejemplo Encargado en caja) para cargar permisos al crear una cuenta.</p>
+    </a>
+    {% endif %}
+
+    {% if 'settings.billing' in user_permissions %}
+    <a href="{% url 'users:billing_settings' %}" class="card config-hub-card">
+        <h3>Multa por morosidad</h3>
+        <p>Configurar el monto sugerido en USD cuando se reactiva una suscripción mensual suspendida.</p>
     </a>
     {% endif %}
 </div>

@@ -861,6 +861,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .modal-content {
+    position: relative;
     background: var(--bg-surface);
     border: 1px solid var(--border-color);
     padding: 2rem 2.5rem;
@@ -906,12 +907,52 @@ h1, h2, h3, h4, h5, h6 {
     max-width: 560px;
 }
 
-.modal-content h2 {
+.modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    margin: 0;
+    padding: 0;
+    border: none;
+    color: var(--text-main);
+    flex: 1;
+    min-width: 0;
+}
+
+.modal-content > h2:first-child {
     margin-top: 0;
     margin-bottom: 1.5rem;
     color: var(--text-main);
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 1rem;
+}
+
+.modal-close {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--text-main);
+    border-color: var(--text-muted);
+    background: rgba(148, 163, 184, 0.08);
 }
 
 .modal-actions {

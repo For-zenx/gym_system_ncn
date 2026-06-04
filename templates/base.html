@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Perfect Line II{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.7">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.8">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -40,7 +40,7 @@
                 {% endif %}
             </nav>
             <div class="sidebar-footer">
-                {% if 'users.view' in user_permissions or 'roles.manage' in user_permissions %}
+                {% if 'users.view' in user_permissions or 'roles.manage' in user_permissions or 'settings.billing' in user_permissions %}
                 <a href="{% url 'users:config_home' %}" class="nav-item nav-item-config {% if '/configuracion/' in request.path %}active{% endif %}">Configuración de Sist.</a>
                 {% endif %}
                 <a href="{% url 'staff_profile' %}" class="nav-item {% if request.resolver_match.url_name == 'staff_profile' %}active{% endif %}">Mi perfil</a>
@@ -101,7 +101,7 @@
     {% if 'settings.exchange_rate' in user_permissions %}
     <div class="modal-overlay" id="rateModal">
         <div class="modal-content modal-content-narrow">
-            <h2>Actualizar Tasa VES/$</h2>
+            {% include "includes/modal_header.html" with modal_title="Actualizar Tasa VES/$" %}
             <form method="POST" action="{% url 'billing:update_rate' %}">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.path }}">
@@ -142,6 +142,7 @@
             if (modal) modal.classList.remove('show');
         }
     </script>
+    <script src="{% static 'js/modal.js' %}?v=1.0"></script>
     <script src="{% static 'js/dashboard_ws.js' %}?v=1.7"></script>
 
     {% block extra_js %}{% endblock %}
@@ -159,14 +160,7 @@
             if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
             if (sidebarOverlay) sidebarOverlay.addEventListener('click', toggleSidebar);
 
-            const rateModal = document.getElementById('rateModal');
-            if (rateModal) {
-                rateModal.addEventListener('click', function(e) {
-                    if (e.target === rateModal) {
-                        closeRateModal();
-                    }
-                });
-            }
+            bindDismissibleModalById('rateModal', { onClose: closeRateModal });
         });
     </script>
 </body>

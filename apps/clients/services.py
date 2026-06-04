@@ -1,6 +1,25 @@
 import os
+
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db import transaction
+
+CLIENT_IMAGE_FIELDS = ("foto_frente", "foto_perfil_izq", "foto_perfil_der")
+
+
+def _delete_client_image_files(client):
+    for field_name in CLIENT_IMAGE_FIELDS:
+        image_field = getattr(client, field_name, None)
+        if image_field:
+            image_field.delete(save=False)
+
+
+@transaction.atomic
+def delete_client(client):
+    codigo_afiliado = client.codigo_afiliado
+    _delete_client_image_files(client)
+    client.delete()
+    return codigo_afiliado
 
 def save_enrollment_photos(client, files_dict):
     """

@@ -4,6 +4,10 @@
 {% block title %}Factura {{ invoice.nro_control }} | Perfect Line II{% endblock %}
 {% block page_title %}Detalle de Factura{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3.3">
+{% endblock %}
+
 {% block content %}
 <div style="max-width: 800px; margin: 0 auto;">
 
@@ -24,7 +28,10 @@
         <a href="{% url 'billing:invoice_list' %}" class="btn btn-secondary">&larr; Volver al Historial</a>
         {% endif %}
 
-        <div style="display: flex; gap: 1rem; align-items: center;">
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            {% if 'billing.delete_invoice' in user_permissions %}
+            <button type="button" class="btn btn-danger-outline" onclick="openDeleteInvoiceModal()">Eliminar factura</button>
+            {% endif %}
             {% if invoice.esta_impresa %}
             <span class="badge badge-print" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Impresa</span>
             <button class="btn btn-secondary" disabled style="cursor: not-allowed; opacity: 0.6;">
@@ -86,5 +93,51 @@
         </div>
     </div>
 
+    {% if 'billing.delete_invoice' in user_permissions %}
+    <div class="modal-overlay" id="deleteInvoiceModal">
+        <div class="modal-content">
+            {% include "includes/modal_header.html" with modal_title="Eliminar factura" %}
+            <p style="margin-top: 0; color: var(--text-muted); line-height: 1.5;">
+                Se borrará la factura <strong>{{ invoice.nro_control }}</strong> del sistema.
+                {% if invoice.esta_impresa %}
+                Esta factura ya fue marcada como impresa; elimínala solo si fue un registro erróneo.
+                {% endif %}
+            </p>
+            <form method="POST" action="{% url 'billing:invoice_delete' invoice.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="confirm_delete" value="1">
+                {% if next_url %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
+                <label class="profile-danger-ack" style="margin-top: 1rem;">
+                    <input type="checkbox" required>
+                    <span>Confirmo que deseo eliminar esta factura del historial.</span>
+                </label>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeleteInvoiceModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Eliminar factura</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/modal.js' %}?v=1.0"></script>
+<script>
+    {% if 'billing.delete_invoice' in user_permissions %}
+    function openDeleteInvoiceModal() {
+        document.getElementById('deleteInvoiceModal').classList.add('show');
+    }
+
+    function closeDeleteInvoiceModal() {
+        document.getElementById('deleteInvoiceModal').classList.remove('show');
+    }
+
+    bindDismissibleModalById('deleteInvoiceModal', { onClose: closeDeleteInvoiceModal });
+    {% endif %}
+</script>
 {% endblock %}
