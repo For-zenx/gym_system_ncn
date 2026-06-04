@@ -88,3 +88,24 @@ def days_since_last_unpaid_cut(client, today=None):
     if today is None:
         today = date.today()
     return (today - unpaid[0][0]).days
+
+
+def next_cut_date(client, today=None):
+    if not client.fecha_corte_dia:
+        return None
+    if today is None:
+        today = date.today()
+    cut_day = client.fecha_corte_dia
+    cut_this_month = resolve_cut_date(today.year, today.month, cut_day)
+    if today <= cut_this_month:
+        return cut_this_month
+    return advance_cut_date(cut_this_month, cut_day)
+
+
+def days_until_next_cut_date(client, today=None):
+    next_cut = next_cut_date(client, today)
+    if not next_cut:
+        return None
+    if today is None:
+        today = date.today()
+    return (next_cut - today).days

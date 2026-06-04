@@ -6,7 +6,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from apps.access import ai_engine
-from apps.access.services import check_access_integrity
+from apps.access.services import build_tablet_access_payload, check_access_integrity
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,12 @@ class AccessTabletConsumer(AsyncWebsocketConsumer):
         client = await database_sync_to_async(ai_engine.recognize_face)(base64_image)
 
         if client is None:
-            await self.send(json.dumps({"status": "DENIED", "reason": "No reconocido"}))
+            await self.send(json.dumps({
+                "status": "DENIED",
+                "variant": "denied_unknown",
+                "name": "",
+                "detail": "No reconocido",
+            }))
             return
 
         def get_membership_data(client_obj):
@@ -78,11 +83,10 @@ class AccessTabletConsumer(AsyncWebsocketConsumer):
         mem_data = await database_sync_to_async(get_membership_data)(client)
         granted, detail = await database_sync_to_async(check_access_integrity)(client)
 
-        if granted:
-            days_left = mem_data["days_left"] if mem_data else 0
-            await self.send(json.dumps({"status": "GRANTED", "name": client.nombre, "days_left": max(days_left, 0)}))
-        else:
-            await self.send(json.dumps({"status": "DENIED", "name": client.nombre, "reason": detail}))
+        tablet_payload = await database_sync_to_async(build_tablet_access_payload)(
+            client, granted, detail, mem_data
+        )
+        await self.send(json.dumps(tablet_payload))
 
         photo_url = client.foto_frente.url if client.foto_frente else ""
         from apps.billing.services import get_membership_feed_lines

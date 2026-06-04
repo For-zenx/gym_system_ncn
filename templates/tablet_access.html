@@ -7,9 +7,9 @@
     <title>Perfect Line II — Acceso</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/tablet.css' %}?v=1.6">
+    <link rel="stylesheet" href="{% static 'css/tablet.css' %}?v=2.1">
 </head>
-<body>
+<body class="tablet-access-body">
 
     <video id="camera-feed" autoplay playsinline muted></video>
     <canvas id="overlay-canvas"></canvas>
@@ -23,16 +23,24 @@
         <span id="status-text">Conectando...</span>
     </div>
 
-    <div id="access-flash" class="access-flash hidden">
-        <div id="access-icon" style="font-size: 6rem; margin-bottom: 1rem;">✅</div>
-        <h1 id="access-title">¡Bienvenido!</h1>
-        <p id="access-subtitle">Juan Pérez</p>
+    <div id="face-guide" class="face-guide face-guide-access active">
+        <div class="face-guide-oval access-guide-oval"></div>
+    </div>
+
+    <div id="access-bottom-banner" class="access-bottom-banner hidden" role="status">
+        <p id="access-banner-title" class="access-banner-title"></p>
+        <p id="access-banner-subtitle" class="access-banner-subtitle"></p>
+    </div>
+
+    <div id="hud-instruction" class="hud-bubble">
+        <span id="hud-text">Coloque su rostro en el óvalo</span>
     </div>
 
     <script>
         window.TABLET_WS_URL = "{{ ws_url }}";
     </script>
     <script src="{% static 'vendor/face-api.min.js' %}"></script>
-    <script src="{% static 'js/tablet_access.js' %}?v=1.0"></script>
+    <script src="{% static 'js/tablet_face_utils.js' %}?v=1.1"></script>
+    <script src="{% static 'js/tablet_access.js' %}?v=2.1"></script>
 </body>
 </html>

@@ -2,31 +2,137 @@
 
 const WS_URL = window.TABLET_WS_URL;
 const RECONNECT_DELAY_MS = 3000;
+const CAPTURE_COOLDOWN_MS = 2000;
+const RESULT_DISPLAY_MS = 4000;
 
 const cameraFeed = document.getElementById('camera-feed');
 const overlayCanvas = document.getElementById('overlay-canvas');
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
-const accessFlash = document.getElementById('access-flash');
-const accessIcon = document.getElementById('access-icon');
-const accessTitle = document.getElementById('access-title');
-const accessSubtitle = document.getElementById('access-subtitle');
+const faceGuide = document.getElementById('face-guide');
+const faceGuideOval = document.querySelector('.access-guide-oval');
+const accessBottomBanner = document.getElementById('access-bottom-banner');
+const accessBannerTitle = document.getElementById('access-banner-title');
+const accessBannerSubtitle = document.getElementById('access-banner-subtitle');
+const hudInstruction = document.getElementById('hud-instruction');
+const hudText = document.getElementById('hud-text');
 
 let isProcessingAccess = false;
 let isCooldown = false;
-let accessFlashTimeout = null;
+let resultTimeout = null;
 let serverTimeoutTimer = null;
 let socket = null;
 let reconnectTimer = null;
 let canvasCtx = overlayCanvas.getContext('2d');
 let isModelsLoaded = false;
 let lastCaptureTime = 0;
-const CAPTURE_COOLDOWN_MS = 2500;
 
 async function loadModels() {
     const MODEL_URL = '/static/models';
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
     isModelsLoaded = true;
+}
+
+function setHud(text) {
+    hudText.textContent = text;
+}
+
+function setFaceGuideVariant(variant) {
+    faceGuide.className = 'face-guide face-guide-access active' + (variant ? ' ' + variant : '');
+}
+
+function hideBottomBanner() {
+    accessBottomBanner.className = 'access-bottom-banner hidden';
+    accessBottomBanner.classList.remove(
+        'granted', 'denied_unknown', 'denied_suspended', 'denied_schedule', 'denied_other', 'processing'
+    );
+}
+
+function showBottomBanner(variant, title, subtitle) {
+    hideBottomBanner();
+    accessBottomBanner.classList.remove('hidden');
+    accessBottomBanner.classList.add(variant);
+    accessBannerTitle.textContent = title;
+    accessBannerSubtitle.textContent = subtitle || '';
+}
+
+function clearAccessResult() {
+    setFaceGuideVariant('');
+    hideBottomBanner();
+    hudInstruction.classList.remove('hidden');
+    isProcessingAccess = false;
+}
+
+function formatCutLine(data) {
+    if (data.next_cut_display) {
+        return 'Próximo corte: ' + data.next_cut_display;
+    }
+    if (data.cut_day) {
+        return 'Fecha de corte: día ' + data.cut_day + ' de cada mes';
+    }
+    if (data.days_until_cut != null) {
+        const days = data.days_until_cut;
+        const dayWord = days === 1 ? 'día' : 'días';
+        return 'Faltan ' + days + ' ' + dayWord + ' para el corte';
+    }
+    if (data.days_membership_left != null) {
+        const days = data.days_membership_left;
+        const dayWord = days === 1 ? 'día' : 'días';
+        return 'Membresía activa: ' + days + ' ' + dayWord;
+    }
+    return '';
+}
+
+function showAccessProcessing() {
+    isProcessingAccess = true;
+    setFaceGuideVariant('processing');
+    hudInstruction.classList.add('hidden');
+    showBottomBanner('processing', 'Verificando…', 'Un momento por favor');
+}
+
+function showAccessResult(data) {
+    const variant = data.variant || (data.status === 'GRANTED' ? 'granted' : 'denied_unknown');
+    isCooldown = true;
+    isProcessingAccess = false;
+    setFaceGuideVariant(variant);
+    hudInstruction.classList.add('hidden');
+
+    let title = '';
+    let subtitle = '';
+
+    if (variant === 'granted') {
+        title = '¡Aprobado!';
+        const name = data.name ? data.name + ' — ' : '';
+        const cutLine = formatCutLine(data);
+        subtitle = name + (cutLine || 'Acceso concedido');
+    } else if (variant === 'denied_unknown') {
+        title = 'No reconocido';
+        subtitle = data.detail || 'Rostro no registrado en el sistema';
+    } else if (variant === 'denied_schedule') {
+        title = 'Fuera de horario';
+        subtitle = (data.name ? data.name + ' — ' : '') + (data.detail || 'Horario no permitido');
+    } else if (variant === 'denied_suspended') {
+        title = 'Acceso suspendido';
+        const since = data.suspended_since_display
+            ? 'Suspendido desde ' + data.suspended_since_display
+            : (data.detail || 'Suscripción sin pagar');
+        subtitle = (data.name ? data.name + ' — ' : '') + since;
+    } else {
+        title = 'Acceso denegado';
+        subtitle = (data.name ? data.name + ' — ' : '') + (data.detail || data.reason || '');
+    }
+
+    showBottomBanner(variant, title, subtitle);
+
+    clearTimeout(resultTimeout);
+    const waitMs = variant === 'granted' ? RESULT_DISPLAY_MS : 3200;
+    resultTimeout = setTimeout(function () {
+        clearAccessResult();
+        setHud('Coloque su rostro en el óvalo');
+        setTimeout(function () {
+            isCooldown = false;
+        }, 300);
+    }, waitMs);
 }
 
 async function detectFaceLoop() {
@@ -44,21 +150,26 @@ async function detectFaceLoop() {
     const canCapture = (now - lastCaptureTime) > CAPTURE_COOLDOWN_MS;
 
     try {
-        const detection = await faceapi.detectSingleFace(cameraFeed, new faceapi.TinyFaceDetectorOptions());
+        const detection = await faceapi.detectSingleFace(
+            cameraFeed,
+            TabletFaceUtils.accessDetectorOptions()
+        );
         canvasCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-        if (detection) {
+        if (detection && canCapture && !isProcessingAccess && !isCooldown) {
             const resizedDetection = faceapi.resizeResults(detection, displaySize);
-            faceapi.draw.drawDetections(overlayCanvas, resizedDetection);
 
-            if (canCapture && detection.score > 0.8 && !isProcessingAccess && !isCooldown) {
-                const faceWidth = resizedDetection.box.width;
-                if (faceWidth > 120) {
-                    showAccessProcessing();
-                    sendAccessFrame();
-                    lastCaptureTime = now;
-                }
+            if (TabletFaceUtils.meetsAccessCaptureCriteria(
+                detection, resizedDetection, cameraFeed, faceGuideOval
+            )) {
+                showAccessProcessing();
+                sendAccessFrame();
+                lastCaptureTime = now;
+            } else if (!isProcessingAccess) {
+                setHud('Coloque su rostro en el óvalo');
             }
+        } else if (!detection && !isProcessingAccess) {
+            setHud('Coloque su rostro en el óvalo');
         }
     } catch (e) {
         console.error('Error en bucle de detección de acceso:', e);
@@ -82,11 +193,19 @@ function sendAccessFrame() {
         clearTimeout(serverTimeoutTimer);
         serverTimeoutTimer = setTimeout(function () {
             if (isProcessingAccess) {
-                hideAccessFlash();
+                showAccessResult({
+                    status: 'DENIED',
+                    variant: 'denied_unknown',
+                    detail: 'Sin respuesta del servidor',
+                });
             }
         }, 8000);
-    } else if (isProcessingAccess) {
-        showAccessResult('DENIED', 'Servidor Offline', 'Sin conexión con el backend', 5000);
+    } else {
+        showAccessResult({
+            status: 'DENIED',
+            variant: 'denied_unknown',
+            detail: 'Sin conexión con el servidor',
+        });
     }
 }
 
@@ -115,9 +234,7 @@ function connectWebSocket() {
 
     socket.onclose = function () {
         setStatus('disconnected', 'Sin conexión...');
-        if (isProcessingAccess) {
-            hideAccessFlash();
-        }
+        clearAccessResult();
         reconnectTimer = setTimeout(connectWebSocket, RECONNECT_DELAY_MS);
     };
 
@@ -133,51 +250,21 @@ function connectWebSocket() {
 function handleServerMessage(data) {
     clearTimeout(serverTimeoutTimer);
 
-    if (data.status === 'GRANTED') {
-        showAccessResult('GRANTED', '¡Bienvenido!', data.name);
-    } else if (data.status === 'DENIED') {
-        let reason = data.reason || 'Rostro no reconocido';
-        if (data.name) {
-            reason = data.name + ' - ' + reason;
+    if (data.status === 'ERROR') {
+        showAccessResult({
+            status: 'DENIED',
+            variant: 'denied_unknown',
+            detail: data.reason || 'Error',
+        });
+        return;
+    }
+
+    if (data.status === 'GRANTED' || data.status === 'DENIED') {
+        if (!data.variant) {
+            data.variant = data.status === 'GRANTED' ? 'granted' : 'denied_unknown';
         }
-        showAccessResult('DENIED', 'Acceso Denegado', reason);
+        showAccessResult(data);
     }
-}
-
-function showAccessProcessing() {
-    isProcessingAccess = true;
-    accessFlash.className = 'access-flash processing';
-    accessIcon.innerHTML = '<div class="spinner"></div>';
-    accessTitle.textContent = 'Procesando...';
-    accessSubtitle.textContent = 'Verificando identidad';
-}
-
-function showAccessResult(status, mainText, subText, customWait) {
-    const waitTime = customWait || (status === 'GRANTED' ? 5000 : 3000);
-    isCooldown = true;
-
-    if (status === 'GRANTED') {
-        accessFlash.className = 'access-flash granted';
-        accessIcon.textContent = '✅';
-    } else {
-        accessFlash.className = 'access-flash denied';
-        accessIcon.textContent = '❌';
-    }
-    accessTitle.textContent = mainText;
-    accessSubtitle.textContent = subText || '';
-
-    clearTimeout(accessFlashTimeout);
-    accessFlashTimeout = setTimeout(function () {
-        hideAccessFlash();
-        setTimeout(function () {
-            isCooldown = false;
-        }, waitTime);
-    }, waitTime);
-}
-
-function hideAccessFlash() {
-    accessFlash.className = 'access-flash hidden';
-    isProcessingAccess = false;
 }
 
 function setStatus(state, text) {
@@ -186,6 +273,7 @@ function setStatus(state, text) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    setHud('Coloque su rostro en el óvalo');
     loadModels().then(startCamera).catch(function (err) {
         console.error('[Tablet Acceso] Error cargando IA:', err);
         setStatus('disconnected', 'Error IA');
