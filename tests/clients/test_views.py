@@ -1,16 +1,46 @@
 import pytest
 from django.urls import reverse
 
-REQUIRED_PERMISSION = "clients.view_list"
+from apps.clients.models import Client
+from apps.clients.validation import split_cedula
+
+ACCESS_PARAMS = [
+    (False, []),
+    (True, []),
+]
+
+
+def _login_if_needed(client, create_staff_user, is_logged_in, permissions):
+    if is_logged_in:
+        staff = create_staff_user(permissions=permissions)
+        client.force_login(staff)
+
+
+def _assert_access(response, is_logged_in, permissions, required_permission, url, get_login_url, success_status=200):
+    if not is_logged_in:
+        assert response.status_code == 302
+        assert response.url == get_login_url(url)
+    elif required_permission not in permissions:
+        assert response.status_code == 403
+    else:
+        assert response.status_code == success_status
+
+
+def _edit_post_data(affiliate):
+    prefix, numero = split_cedula(affiliate.cedula)
+    return {
+        "nombre": affiliate.nombre,
+        "cedula_prefix": prefix,
+        "cedula_numero": numero,
+        "telefono": affiliate.telefono or "",
+        "fecha_nacimiento": "",
+        "sexo": affiliate.sexo or "",
+    }
 
 
 @pytest.mark.parametrize(
     ("is_logged_in", "permissions"),
-    [
-        (False, []),
-        (True, []),
-        (True, [REQUIRED_PERMISSION]),
-    ],
+    ACCESS_PARAMS + [(True, ["clients.view_list"])],
 )
 @pytest.mark.django_db
 def test_client_list__access(
@@ -22,17 +52,94 @@ def test_client_list__access(
     permissions,
 ):
     create_client()
-    if is_logged_in:
-        staff = create_staff_user(permissions=permissions)
-        client.force_login(staff)
+    _login_if_needed(client, create_staff_user, is_logged_in, permissions)
 
     url = reverse("clients:client_list")
     response = client.get(url)
+    _assert_access(response, is_logged_in, permissions, "clients.view_list", url, get_login_url)
 
-    if not is_logged_in:
-        assert response.status_code == 302
-        assert response.url == get_login_url(url)
-    elif REQUIRED_PERMISSION not in permissions:
-        assert response.status_code == 403
-    else:
-        assert response.status_code == 200
+
+@pytest.mark.parametrize(
+    ("is_logged_in", "permissions"),
+    ACCESS_PARAMS + [(True, ["clients.view_profile"])],
+)
+@pytest.mark.django_db
+def test_client_profile__access(
+    client,
+    create_staff_user,
+    create_client,
+    get_login_url,
+    is_logged_in,
+    permissions,
+):
+    affiliate = create_client()
+    _login_if_needed(client, create_staff_user, is_logged_in, permissions)
+
+    url = reverse("clients:profile", kwargs={"codigo_afiliado": affiliate.codigo_afiliado})
+    response = client.get(url)
+    _assert_access(response, is_logged_in, permissions, "clients.view_profile", url, get_login_url)
+
+
+@pytest.mark.parametrize(
+    ("is_logged_in", "permissions"),
+    ACCESS_PARAMS + [(True, ["clients.edit"])],
+)
+@pytest.mark.django_db
+def test_edit_client__access(
+    client,
+    create_staff_user,
+    create_client,
+    get_login_url,
+    is_logged_in,
+    permissions,
+):
+    affiliate = create_client()
+    _login_if_needed(client, create_staff_user, is_logged_in, permissions)
+
+    url = reverse("clients:edit_client", kwargs={"codigo_afiliado": affiliate.codigo_afiliado})
+    response = client.post(url, _edit_post_data(affiliate))
+    _assert_access(
+        response,
+        is_logged_in,
+        permissions,
+        "clients.edit",
+        url,
+        get_login_url,
+        success_status=302,
+    )
+    if is_logged_in and "clients.edit" in permissions:
+        assert response.url == reverse(
+            "clients:profile",
+            kwargs={"codigo_afiliado": affiliate.codigo_afiliado},
+        )
+
+
+@pytest.mark.parametrize(
+    ("is_logged_in", "permissions"),
+    ACCESS_PARAMS + [(True, ["clients.delete"])],
+)
+@pytest.mark.django_db
+def test_client_delete__access(
+    client,
+    create_staff_user,
+    create_client,
+    get_login_url,
+    is_logged_in,
+    permissions,
+):
+    affiliate = create_client()
+    _login_if_needed(client, create_staff_user, is_logged_in, permissions)
+
+    url = reverse("clients:delete_client", kwargs={"codigo_afiliado": affiliate.codigo_afiliado})
+    response = client.post(url, {"confirm_delete": "0"})
+    _assert_access(
+        response,
+        is_logged_in,
+        permissions,
+        "clients.delete",
+        url,
+        get_login_url,
+        success_status=302,
+    )
+    if is_logged_in and "clients.delete" in permissions:
+        assert Client.objects.filter(pk=affiliate.pk).exists()
