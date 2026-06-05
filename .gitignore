@@ -18,6 +18,9 @@ staticfiles/
 .DS_Store
 Thumbs.db
 
+# Credenciales SMTP locales (TASK-051)
+config/local_email_settings.py
+
 # Deploy (artefactos generados y wheels locales)
 deploy/dist/*
 !deploy/dist/.gitkeep

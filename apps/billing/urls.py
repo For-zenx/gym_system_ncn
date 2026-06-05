@@ -19,6 +19,8 @@ from .views import (
     InvoiceDetailView,
     PrintInvoiceActionView,
     InvoiceDeleteView,
+    ReportView,
+    ReportSendView,
 )
 
 app_name = 'billing'
@@ -43,4 +45,6 @@ urlpatterns = [
     path('facturas/<int:pk>/', InvoiceDetailView.as_view(), name='invoice_detail'),
     path('facturas/<int:pk>/imprimir/', PrintInvoiceActionView.as_view(), name='print_invoice'),
     path('facturas/<int:pk>/eliminar/', InvoiceDeleteView.as_view(), name='invoice_delete'),
+    path('reportes/', ReportView.as_view(), name='report'),
+    path('reportes/enviar/', ReportSendView.as_view(), name='report_send'),
 ]

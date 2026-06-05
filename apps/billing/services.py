@@ -762,6 +762,19 @@ def update_late_fee_amount_usd(amount_raw):
     return settings_obj
 
 
+def update_report_recipient_email(email_raw):
+    from .models import ReportEmailSettings
+
+    email = (email_raw or "").strip()
+    if email and "@" not in email:
+        raise ValidationError("El correo del dueño no es válido.")
+
+    settings_obj = ReportEmailSettings.get_settings()
+    settings_obj.recipient_email = email
+    settings_obj.save(update_fields=["recipient_email", "updated_at"])
+    return settings_obj
+
+
 @transaction.atomic
 def delete_invoice(invoice):
     nro_control = invoice.nro_control

@@ -559,3 +559,59 @@ class InvoiceDeleteView(PermissionRequiredMixin, View):
         if next_url:
             return redirect(next_url)
         return redirect("billing:invoice_list")
+
+
+class ReportView(PermissionRequiredMixin, View):
+    required_permission = "reports.view"
+
+    def get(self, request):
+        from .reporting import (
+            REPORT_PERIOD_CHOICES,
+            build_report_context,
+            can_send_report_today,
+            daily_send_count,
+            is_smtp_configured,
+            normalize_period_days,
+        )
+        from .models import ReportEmailSettings
+
+        period_days = normalize_period_days(request.GET.get("period", 7))
+        report = build_report_context(period_days)
+        cfg = ReportEmailSettings.get_settings()
+        can_send, send_block_reason = can_send_report_today()
+
+        return render(
+            request,
+            "billing/report.html",
+            {
+                "report": report,
+                "period_choices": REPORT_PERIOD_CHOICES,
+                "period_days": period_days,
+                "recipient_email": cfg.recipient_email,
+                "daily_send_limit": cfg.daily_send_limit,
+                "daily_send_count": daily_send_count(),
+                "can_send": can_send,
+                "send_block_reason": send_block_reason,
+                "smtp_configured": is_smtp_configured(),
+            },
+        )
+
+
+class ReportSendView(PermissionRequiredMixin, View):
+    required_permission = "reports.send"
+
+    def post(self, request):
+        from .reporting import normalize_period_days, send_report_email
+
+        period_days = normalize_period_days(request.POST.get("period_days", 7))
+        result = send_report_email(period_days=period_days, user=request.user)
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(result)
+
+        if result["success"]:
+            messages.success(request, "Reporte enviado correctamente.")
+        else:
+            failed = next((item["text"] for item in result["items"] if not item["ok"]), None)
+            messages.error(request, failed or "No se pudo enviar el reporte.")
+        return redirect(f"{reverse('billing:report')}?period={period_days}")

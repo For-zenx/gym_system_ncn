@@ -158,3 +158,38 @@ LOGOUT_REDIRECT_URL = 'login'
 
 # DEPRECATED: TASK-045 — token único; tokens por rol se añadirán en tarea futura.
 TABLET_TOKEN = "gym-tablet-001"
+
+# Correo (reportes TASK-051): credenciales SMTP vía entorno o config/local_email_settings.py
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    "Perfect Line II <{user}>".format(user=EMAIL_HOST_USER or "noreply@perfectline.local"),
+)
+REPORT_EMAIL_SUBJECT_PREFIX = os.getenv("REPORT_EMAIL_SUBJECT_PREFIX", "Perfect Line II")
+
+_local_email_path = BASE_DIR / "config" / "local_email_settings.py"
+if _local_email_path.exists():
+    import importlib.util
+
+    _spec = importlib.util.spec_from_file_location("local_email_settings", _local_email_path)
+    _local_email = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_local_email)
+    for _key in (
+        "EMAIL_HOST",
+        "EMAIL_PORT",
+        "EMAIL_USE_TLS",
+        "EMAIL_HOST_USER",
+        "EMAIL_HOST_PASSWORD",
+        "DEFAULT_FROM_EMAIL",
+    ):
+        if hasattr(_local_email, _key):
+            globals()[_key] = getattr(_local_email, _key)
+
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

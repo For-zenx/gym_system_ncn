@@ -13,8 +13,8 @@ from .forms_helpers import build_granted_permission_groups, build_permission_gro
 from .mixins import PermissionRequiredMixin
 from .models import StaffRole
 from .permissions import has_permission
-from apps.billing.models import BillingSettings
-from apps.billing.services import update_late_fee_amount_usd
+from apps.billing.models import BillingSettings, ReportEmailSettings
+from apps.billing.services import update_late_fee_amount_usd, update_report_recipient_email
 from .services import (
     create_staff_role,
     create_staff_user,
@@ -94,7 +94,7 @@ class StaffProfileView(LoginRequiredMixin, View):
 
 
 class ConfigHomeView(AnyPermissionRequiredMixin, TemplateView):
-    required_any_permissions = ("users.view", "roles.manage", "settings.billing")
+    required_any_permissions = ("users.view", "roles.manage", "settings.billing", "settings.reports")
     template_name = "users/config_home.html"
 
 
@@ -120,6 +120,31 @@ class BillingSettingsView(PermissionRequiredMixin, View):
             for msg in exc.messages:
                 messages.error(request, msg)
         return redirect("users:billing_settings")
+
+
+class ReportEmailSettingsView(PermissionRequiredMixin, View):
+    required_permission = "settings.reports"
+
+    def get(self, request):
+        settings_obj = ReportEmailSettings.get_settings()
+        return render(
+            request,
+            "users/report_settings.html",
+            {
+                "recipient_email": settings_obj.recipient_email,
+                "updated_at": settings_obj.updated_at,
+                "daily_send_limit": settings_obj.daily_send_limit,
+            },
+        )
+
+    def post(self, request):
+        try:
+            update_report_recipient_email(request.POST.get("recipient_email"))
+            messages.success(request, "Correo de reportes actualizado correctamente.")
+        except ValidationError as exc:
+            for msg in exc.messages:
+                messages.error(request, msg)
+        return redirect("users:report_settings")
 
 
 class RoleListView(PermissionRequiredMixin, ListView):

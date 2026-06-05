@@ -152,6 +152,7 @@
 }
 
 .config-form-group input[type="text"],
+.config-form-group input[type="email"],
 .config-form-group input[type="password"],
 .config-form-group textarea,
 .config-form-group select {

@@ -29,5 +29,12 @@
         <p>Configurar el monto sugerido en USD cuando se reactiva una suscripción mensual suspendida.</p>
     </a>
     {% endif %}
+
+    {% if 'settings.reports' in user_permissions %}
+    <a href="{% url 'users:report_settings' %}" class="card config-hub-card">
+        <h3>Reportes por correo</h3>
+        <p>Correo que recibirá el resumen enviado desde la pantalla de reportes.</p>
+    </a>
+    {% endif %}
 </div>
 {% endblock %}

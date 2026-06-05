@@ -1,0 +1,202 @@
+(function () {
+    var banner = document.getElementById("report-offline-banner");
+    var sendBtn = document.getElementById("report-send-btn");
+    var sendForm = document.getElementById("report-send-form");
+    var sendCountEl = document.getElementById("report-send-count");
+    var dailyLimit = null;
+
+    var modal = document.getElementById("report-send-modal");
+    var modalTitle = document.getElementById("report-send-modal-title");
+    var modalCloseX = document.getElementById("report-send-modal-close");
+    var loadingState = document.getElementById("report-send-loading");
+    var resultState = document.getElementById("report-send-result");
+    var resultIcon = document.getElementById("report-send-result-icon");
+    var resultTitle = document.getElementById("report-send-result-title");
+    var checklistEl = document.getElementById("report-send-checklist");
+    var closeBtn = document.getElementById("report-send-close-btn");
+
+    function updateOnlineState() {
+        var online = navigator.onLine;
+        if (banner) {
+            banner.hidden = online;
+        }
+        if (sendBtn && !sendBtn.hasAttribute("data-server-blocked")) {
+            sendBtn.disabled = !online;
+            if (!online) {
+                sendBtn.title = "Sin conexión a internet.";
+            }
+        }
+    }
+
+    if (sendBtn && sendBtn.disabled && sendBtn.title) {
+        sendBtn.setAttribute("data-server-blocked", "1");
+    }
+
+    if (sendCountEl) {
+        var match = sendCountEl.textContent.match(/\/\s*(\d+)/);
+        if (match) {
+            dailyLimit = match[1];
+        }
+    }
+
+    function getCsrfToken() {
+        var input = sendForm && sendForm.querySelector('input[name="csrfmiddlewaretoken"]');
+        return input ? input.value : "";
+    }
+
+    function showModal() {
+        if (!modal) {
+            return;
+        }
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+    }
+
+    function hideModal() {
+        if (!modal) {
+            return;
+        }
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    function showLoading() {
+        if (!modal) {
+            return;
+        }
+        if (modalTitle) {
+            modalTitle.textContent = "Enviando reporte";
+        }
+        if (loadingState) {
+            loadingState.classList.remove("hidden");
+        }
+        if (resultState) {
+            resultState.classList.add("hidden");
+        }
+        if (modalCloseX) {
+            modalCloseX.hidden = true;
+        }
+        showModal();
+    }
+
+    function renderChecklist(items) {
+        if (!checklistEl) {
+            return;
+        }
+        checklistEl.innerHTML = "";
+        items.forEach(function (item) {
+            var li = document.createElement("li");
+            li.className = item.ok ? "report-send-check-ok" : "report-send-check-fail";
+            var icon = document.createElement("span");
+            icon.className = "report-send-check-icon";
+            icon.textContent = item.ok ? "✓" : "✕";
+            var text = document.createElement("span");
+            text.textContent = item.text;
+            li.appendChild(icon);
+            li.appendChild(text);
+            checklistEl.appendChild(li);
+        });
+    }
+
+    function showResult(data) {
+        if (!modal || !resultState || !loadingState) {
+            return;
+        }
+        loadingState.classList.add("hidden");
+        resultState.classList.remove("hidden");
+        if (modalCloseX) {
+            modalCloseX.hidden = false;
+        }
+
+        var success = !!data.success;
+        if (modalTitle) {
+            modalTitle.textContent = success ? "Reporte enviado" : "No se pudo enviar";
+        }
+        if (resultIcon) {
+            resultIcon.className = "report-send-result-icon " + (success ? "is-success" : "is-error");
+            resultIcon.textContent = success ? "✓" : "✕";
+        }
+        if (resultTitle) {
+            resultTitle.textContent = success
+                ? "El resumen fue enviado correctamente."
+                : "Revisa los siguientes puntos:";
+        }
+        renderChecklist(data.items || []);
+
+        if (success && sendCountEl && typeof data.daily_send_count === "number" && dailyLimit) {
+            sendCountEl.textContent = "Envíos hoy: " + data.daily_send_count + " / " + dailyLimit;
+        }
+
+        if (success && sendBtn && typeof data.daily_send_count === "number" && dailyLimit
+            && data.daily_send_count >= parseInt(dailyLimit, 10)) {
+            sendBtn.disabled = true;
+            sendBtn.title = "Límite diario alcanzado.";
+            sendBtn.setAttribute("data-server-blocked", "1");
+        }
+    }
+
+    window.addEventListener("online", updateOnlineState);
+    window.addEventListener("offline", updateOnlineState);
+    updateOnlineState();
+
+    if (sendForm && modal) {
+        sendForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            if (sendBtn && sendBtn.disabled) {
+                return;
+            }
+
+            showLoading();
+            if (sendBtn) {
+                sendBtn.disabled = true;
+                sendBtn.textContent = "Enviando…";
+            }
+
+            var formData = new FormData(sendForm);
+            fetch(sendForm.action, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken": getCsrfToken(),
+                },
+                body: formData,
+            })
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    showResult(data);
+                    if (sendBtn) {
+                        sendBtn.textContent = "Enviar por correo";
+                        if (!sendBtn.hasAttribute("data-server-blocked")) {
+                            sendBtn.disabled = false;
+                            updateOnlineState();
+                        }
+                    }
+                })
+                .catch(function () {
+                    showResult({
+                        success: false,
+                        items: [{ ok: false, text: "Error de conexión con el servidor" }],
+                    });
+                    if (sendBtn) {
+                        sendBtn.textContent = "Enviar por correo";
+                        if (!sendBtn.hasAttribute("data-server-blocked")) {
+                            sendBtn.disabled = false;
+                            updateOnlineState();
+                        }
+                    }
+                });
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener("click", hideModal);
+    }
+    if (typeof bindDismissibleModalById === "function") {
+        bindDismissibleModalById("report-send-modal", {
+            onClose: hideModal,
+            allowBackdrop: true,
+        });
+    }
+})();

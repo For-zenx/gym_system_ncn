@@ -135,6 +135,65 @@ class BillingSettings(models.Model):
         return f"Multa sugerida: ${self.multa_monto_usd} USD"
 
 
+class ReportEmailSettings(models.Model):
+    recipient_email = models.EmailField(
+        "Correo del destinatario",
+        blank=True,
+        default="",
+    )
+    daily_send_limit = models.PositiveSmallIntegerField(
+        "Límite de envíos por día",
+        default=3,
+    )
+    updated_at = models.DateTimeField("Actualizado", auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuración de reportes por correo"
+        verbose_name_plural = "Configuración de reportes por correo"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("No se puede eliminar la configuración de reportes.")
+
+    @classmethod
+    def get_settings(cls):
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={"daily_send_limit": 3})
+        return obj
+
+    def __str__(self):
+        if self.recipient_email:
+            return f"Reportes → {self.recipient_email}"
+        return "Reportes (sin correo destino)"
+
+
+class ReportSendLog(models.Model):
+    sent_at = models.DateTimeField("Enviado", auto_now_add=True)
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="report_send_logs",
+        verbose_name="Usuario",
+    )
+    period_days = models.PositiveSmallIntegerField("Días del período")
+    recipient_email = models.EmailField("Destinatario")
+    success = models.BooleanField("Éxito", default=False)
+    error_message = models.TextField("Error", blank=True)
+
+    class Meta:
+        verbose_name = "Envío de reporte"
+        verbose_name_plural = "Envíos de reportes"
+        ordering = ["-sent_at"]
+
+    def __str__(self):
+        status = "OK" if self.success else "Error"
+        return f"Reporte {self.period_days}d → {self.recipient_email} ({status})"
+
+
 class SaleItem(models.Model):
     class ItemType(models.TextChoices):
         SERVICE = "SERVICE", "Servicio"

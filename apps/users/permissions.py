@@ -61,11 +61,19 @@ PERMISSION_GROUPS = {
             ("access.view_logs", "Ver historial de accesos"),
         ],
     },
+    "reports": {
+        "label": "Reportes",
+        "permissions": [
+            ("reports.view", "Ver reportes y vista previa"),
+            ("reports.send", "Enviar reporte por correo"),
+        ],
+    },
     "settings": {
         "label": "Configuración del negocio",
         "permissions": [
             ("settings.exchange_rate", "Cambiar tasa VES/$"),
             ("settings.billing", "Configuración de multa"),
+            ("settings.reports", "Configurar correo de reportes"),
         ],
     },
     "administration": {
@@ -100,6 +108,8 @@ CASHIER_PERMISSION_CODES = [
     "plans.view",
     "products.view",
     "access.view_logs",
+    "reports.view",
+    "reports.send",
 ]
 
 ADMINISTRATOR_PERMISSION_CODES = list(ALL_PERMISSION_CODES)

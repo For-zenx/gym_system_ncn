@@ -29,6 +29,9 @@
                 {% if 'billing.view_invoices' in user_permissions %}
                 <a href="{% url 'billing:invoice_list' %}" class="nav-item {% if request.resolver_match.url_name == 'invoice_list' %}active{% endif %}">Historial de facturas</a>
                 {% endif %}
+                {% if 'reports.view' in user_permissions %}
+                <a href="{% url 'billing:report' %}" class="nav-item {% if request.resolver_match.url_name == 'report' %}active{% endif %}">Reportes</a>
+                {% endif %}
                 {% if 'clients.enroll' in user_permissions %}
                 <a href="{% url 'enrollment' %}" class="nav-item {% if request.resolver_match.url_name == 'enrollment' %}active{% endif %}">Enrolamiento</a>
                 {% endif %}
@@ -40,7 +43,7 @@
                 {% endif %}
             </nav>
             <div class="sidebar-footer">
-                {% if 'users.view' in user_permissions or 'roles.manage' in user_permissions or 'settings.billing' in user_permissions %}
+                {% if 'users.view' in user_permissions or 'roles.manage' in user_permissions or 'settings.billing' in user_permissions or 'settings.reports' in user_permissions %}
                 <a href="{% url 'users:config_home' %}" class="nav-item nav-item-config {% if '/configuracion/' in request.path %}active{% endif %}">Configuración de Sist.</a>
                 {% endif %}
                 <a href="{% url 'staff_profile' %}" class="nav-item {% if request.resolver_match.url_name == 'staff_profile' %}active{% endif %}">Mi perfil</a>

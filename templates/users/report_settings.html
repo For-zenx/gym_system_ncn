@@ -1,0 +1,42 @@
+{% extends "users/config_base.html" %}
+
+{% block title %}Reportes por correo - Configuración{% endblock %}
+{% block config_heading %}Reportes por correo{% endblock %}
+
+{% block config_content %}
+<p class="config-intro">
+    Correo que recibirá el resumen enviado desde la pantalla de <a href="{% url 'billing:report' %}">Reportes</a>.
+</p>
+
+<form method="post" class="card config-form-card">
+    {% csrf_token %}
+
+    <div class="config-form-section">
+        <div class="config-form-section-header">
+            <h3>Destinatario</h3>
+            <p>Hasta {{ daily_send_limit }} envíos por día.</p>
+        </div>
+        <div class="config-form-grid" style="grid-template-columns: minmax(0, 360px);">
+            <div class="config-form-group">
+                <label for="recipient_email">Correo del destinatario</label>
+                <input
+                    type="email"
+                    id="recipient_email"
+                    name="recipient_email"
+                    value="{{ recipient_email }}"
+                    placeholder="ejemplo@correo.com"
+                    autocomplete="email"
+                >
+            </div>
+        </div>
+        {% if updated_at %}
+        <p class="config-muted" style="margin: 0.75rem 0 0;">Última actualización: {{ updated_at|date:"d/m/Y H:i" }}</p>
+        {% endif %}
+    </div>
+
+    <div class="config-form-actions">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a href="{% url 'users:config_home' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

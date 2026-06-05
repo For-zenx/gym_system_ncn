@@ -1,0 +1,69 @@
+<section class="report-section">
+    <header class="report-section-header">
+        <h2>Resumen contable</h2>
+        <p class="report-muted">{{ report.date_range }} · Generado {{ report.generated_at }}</p>
+    </header>
+
+    <div class="report-kpi-grid">
+        <div class="report-kpi">
+            <span class="report-kpi-label">Facturas</span>
+            <strong>{{ report.totals.invoice_count }}</strong>
+        </div>
+        <div class="report-kpi">
+            <span class="report-kpi-label">Membresías</span>
+            <strong>{{ report.totals.membership_count }}</strong>
+            <span class="report-kpi-sub">{{ report.totals.membership_ves_fmt }}</span>
+        </div>
+        <div class="report-kpi">
+            <span class="report-kpi-label">Productos</span>
+            <strong>{{ report.totals.product_count }}</strong>
+            <span class="report-kpi-sub">{{ report.totals.product_ves_fmt }}</span>
+        </div>
+        <div class="report-kpi">
+            <span class="report-kpi-label">Afiliados nuevos</span>
+            <strong>{{ report.new_clients }}</strong>
+            <span class="report-kpi-sub">En el período</span>
+        </div>
+    </div>
+</section>
+
+<section class="report-section">
+    <h3>Facturas del período</h3>
+    {% if report.invoice_rows_truncated %}
+    <p class="report-muted">Mostrando las 50 más recientes. El total incluye todas las facturas del período.</p>
+    {% endif %}
+    <div class="table-container">
+        <table class="data-table report-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Nro. control</th>
+                    <th>Afiliado</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report.invoice_rows %}
+                <tr>
+                    <td>{{ row.date }}</td>
+                    <td style="font-family: monospace;">{{ row.number }}</td>
+                    <td>{{ row.client }}</td>
+                    <td style="text-align: right;">{{ row.total_ves }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="report-muted" style="text-align: center; padding: 1.5rem;">
+                        No hay facturas en este período.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="report-table-total">
+                    <td colspan="3">Total generado</td>
+                    <td style="text-align: right;">{{ report.totals.total_ves_fmt }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</section>
