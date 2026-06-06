@@ -1,9 +1,10 @@
 import itertools
+from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 
-from apps.billing.models import Plan, SaleItem
+from apps.billing.models import Invoice, InvoiceLine, Membership, Plan, SaleItem
 from apps.clients.models import Client
 from apps.users.models import StaffProfile, StaffRole
 from apps.users.permissions import validate_permissions
@@ -15,6 +16,7 @@ _client_counter = itertools.count(1)
 _plan_counter = itertools.count(1)
 _sale_item_counter = itertools.count(1)
 _role_counter = itertools.count(1)
+_invoice_counter = itertools.count(1)
 
 
 def create_staff_user(permissions=None, username=None, password="testpass123", is_superuser=False):
@@ -80,3 +82,54 @@ def create_staff_role(name=None, permissions=None):
         name=name or "Plantilla Test {}".format(seq),
         permissions=validate_permissions(permissions or ["plans.view"]),
     )
+
+
+def create_invoice(
+    client=None,
+    plan=None,
+    with_line=False,
+    nro_control=None,
+    monto_total=None,
+    esta_impresa=False,
+):
+    if client is None:
+        client = create_client()
+    if plan is None:
+        plan = create_plan()
+
+    membership = Membership.objects.create(
+        client=client,
+        plan=plan,
+        fecha_inicio=date.today(),
+    )
+    seq = next(_invoice_counter)
+    total = monto_total or Decimal("1000.00")
+    invoice = Invoice.objects.create(
+        client=client,
+        membership=membership,
+        monto_total=total,
+        nro_control=nro_control or "TEST-{:05d}".format(seq),
+        esta_impresa=esta_impresa,
+        plan_snapshot=plan.nombre,
+    )
+    invoice.set_client_snapshots(client)
+    invoice.save(
+        update_fields=[
+            "client_nombre_snapshot",
+            "client_cedula_snapshot",
+            "client_codigo_snapshot",
+            "plan_snapshot",
+        ]
+    )
+
+    if with_line:
+        InvoiceLine.objects.create(
+            invoice=invoice,
+            line_kind=InvoiceLine.LineKind.MEMBERSHIP,
+            description=plan.nombre,
+            amount_ves=total,
+            membership=membership,
+            unit_price_usd=plan.precio_usd,
+        )
+
+    return invoice
