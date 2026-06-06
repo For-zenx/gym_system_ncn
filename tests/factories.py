@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 
 from apps.billing.models import Plan, SaleItem
 from apps.clients.models import Client
-from apps.users.models import StaffProfile
+from apps.users.models import StaffProfile, StaffRole
 from apps.users.permissions import validate_permissions
 
 User = get_user_model()
@@ -14,6 +14,7 @@ _user_counter = itertools.count(1)
 _client_counter = itertools.count(1)
 _plan_counter = itertools.count(1)
 _sale_item_counter = itertools.count(1)
+_role_counter = itertools.count(1)
 
 
 def create_staff_user(permissions=None, username=None, password="testpass123", is_superuser=False):
@@ -70,4 +71,12 @@ def create_sale_item(name=None, item_type=SaleItem.ItemType.PRODUCT, price_usd=N
         item_type=item_type,
         price_usd=price_usd or Decimal("5.00"),
         is_active=True,
+    )
+
+
+def create_staff_role(name=None, permissions=None):
+    seq = next(_role_counter)
+    return StaffRole.objects.create(
+        name=name or "Plantilla Test {}".format(seq),
+        permissions=validate_permissions(permissions or ["plans.view"]),
     )

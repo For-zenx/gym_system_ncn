@@ -1,26 +1,7 @@
 import pytest
 from django.urls import reverse
 
-ACCESS_PARAMS = [
-    (False, []),
-    (True, []),
-]
-
-
-def _login_if_needed(client, create_staff_user, is_logged_in, permissions):
-    if is_logged_in:
-        staff = create_staff_user(permissions=permissions)
-        client.force_login(staff)
-
-
-def _assert_access(response, is_logged_in, permissions, required_permission, url, get_login_url, success_status=200):
-    if not is_logged_in:
-        assert response.status_code == 302
-        assert response.url == get_login_url(url)
-    elif required_permission not in permissions:
-        assert response.status_code == 403
-    else:
-        assert response.status_code == success_status
+from tests.helpers import ACCESS_PARAMS, assert_access, login_if_needed
 
 
 @pytest.mark.parametrize(
@@ -37,11 +18,11 @@ def test_plan_list__access(
     permissions,
 ):
     create_plan()
-    _login_if_needed(client, create_staff_user, is_logged_in, permissions)
+    login_if_needed(client, create_staff_user, is_logged_in, permissions)
 
     url = reverse("billing:plan_list")
     response = client.get(url)
-    _assert_access(response, is_logged_in, permissions, "plans.view", url, get_login_url)
+    assert_access(response, is_logged_in, permissions, "plans.view", url, get_login_url)
 
 
 @pytest.mark.parametrize(
@@ -56,11 +37,11 @@ def test_plan_create__access(
     is_logged_in,
     permissions,
 ):
-    _login_if_needed(client, create_staff_user, is_logged_in, permissions)
+    login_if_needed(client, create_staff_user, is_logged_in, permissions)
 
     url = reverse("billing:plan_create")
     response = client.get(url)
-    _assert_access(response, is_logged_in, permissions, "plans.create", url, get_login_url)
+    assert_access(response, is_logged_in, permissions, "plans.create", url, get_login_url)
 
 
 @pytest.mark.parametrize(
@@ -77,11 +58,11 @@ def test_plan_update__access(
     permissions,
 ):
     plan = create_plan()
-    _login_if_needed(client, create_staff_user, is_logged_in, permissions)
+    login_if_needed(client, create_staff_user, is_logged_in, permissions)
 
     url = reverse("billing:plan_update", kwargs={"pk": plan.pk})
     response = client.get(url)
-    _assert_access(response, is_logged_in, permissions, "plans.edit", url, get_login_url)
+    assert_access(response, is_logged_in, permissions, "plans.edit", url, get_login_url)
 
 
 @pytest.mark.parametrize(
@@ -98,11 +79,11 @@ def test_plan_delete__access(
     permissions,
 ):
     plan = create_plan()
-    _login_if_needed(client, create_staff_user, is_logged_in, permissions)
+    login_if_needed(client, create_staff_user, is_logged_in, permissions)
 
     url = reverse("billing:plan_delete", kwargs={"pk": plan.pk})
     response = client.post(url)
-    _assert_access(
+    assert_access(
         response,
         is_logged_in,
         permissions,

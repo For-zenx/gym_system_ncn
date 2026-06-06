@@ -32,3 +32,8 @@ def create_plan(db):
 @pytest.fixture
 def create_sale_item(db):
     return factories.create_sale_item
+
+
+@pytest.fixture
+def create_staff_role(db):
+    return factories.create_staff_role
