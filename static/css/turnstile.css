@@ -1,0 +1,212 @@
+.turnstile-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.is-hidden {
+    display: none !important;
+}
+
+.turnstile-form-card h2,
+.turnstile-history-card h2 {
+    margin: 0 0 1.25rem;
+}
+
+.turnstile-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.turnstile-field label {
+    display: block;
+    margin-bottom: 0.45rem;
+    font-weight: 600;
+}
+
+.turnstile-input,
+.turnstile-field input,
+.turnstile-field select,
+.turnstile-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-main);
+    color: var(--text-main);
+    font: inherit;
+}
+
+.turnstile-subtext {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.turnstile-warning-text {
+    color: #fbbf24;
+}
+
+.turnstile-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+}
+
+.turnstile-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    border-radius: 0.75rem;
+    padding: 0.95rem 1rem;
+    border: 1px solid;
+}
+
+.turnstile-banner-success {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #d1fae5;
+}
+
+.turnstile-banner-warning {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fde68a;
+}
+
+.turnstile-banner-error,
+.turnstile-form-errors {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fecaca;
+    border-radius: 0.75rem;
+    padding: 0.95rem 1rem;
+}
+
+.turnstile-form-errors p,
+.turnstile-banner span,
+.turnstile-banner strong {
+    margin: 0;
+}
+
+.turnstile-error-text {
+    margin: 0.4rem 0 0;
+    color: #fca5a5;
+    font-size: 0.85rem;
+}
+
+.turnstile-link-btn {
+    margin-top: 0.65rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--primary);
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.turnstile-link-btn:hover {
+    color: var(--primary-hover);
+}
+
+.turnstile-search-results {
+    margin-top: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.6rem;
+    overflow: hidden;
+    background: var(--bg-main);
+}
+
+.turnstile-search-item {
+    width: 100%;
+    display: block;
+    text-align: left;
+    padding: 0.75rem 0.9rem;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    cursor: pointer;
+}
+
+.turnstile-search-item:last-child {
+    border-bottom: none;
+}
+
+.turnstile-search-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.turnstile-search-item strong {
+    display: block;
+    margin-bottom: 0.2rem;
+}
+
+.turnstile-search-empty {
+    padding: 0.85rem 0.9rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.turnstile-selected-client {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.turnstile-selected-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.turnstile-client-actions {
+    margin-top: -0.35rem;
+}
+
+.turnstile-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.turnstile-badge-success {
+    background: rgba(16, 185, 129, 0.18);
+    color: #6ee7b7;
+}
+
+.turnstile-badge-danger {
+    background: rgba(239, 68, 68, 0.16);
+    color: #fca5a5;
+}
+
+.turnstile-time-cell {
+    white-space: nowrap;
+    color: var(--text-muted);
+}
+
+.turnstile-time-cell span {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.turnstile-empty-row {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--text-muted);
+}

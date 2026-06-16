@@ -9,9 +9,7 @@ from apps.billing.cycle import (
 from .models import AccessLog
 
 
-def check_access_integrity(client):
-    from django.utils import timezone
-
+def evaluate_access_integrity(client):
     active_memberships = client.active_memberships
 
     if not active_memberships.exists():
@@ -22,31 +20,35 @@ def check_access_integrity(client):
             motivo = f"Membresía vencida el {latest.fecha_fin.strftime('%d/%m/%Y')}"
         else:
             motivo = "Sin membresía registrada"
-
-        AccessLog.objects.create(
-            client=client,
-            resultado=False,
-            motivo=motivo,
-        )
         return False, motivo
+
+    from django.utils import timezone
 
     current_time = timezone.localtime().time()
 
     for membership in active_memberships:
         if membership.is_valid_now(current_time):
-            AccessLog.objects.create(
-                client=client,
-                resultado=True,
-                motivo="Acceso concedido",
-            )
             return True, "Acceso concedido"
+
+    return False, "Fuera de horario permitido"
+
+
+def check_access_integrity(client):
+    granted, motivo = evaluate_access_integrity(client)
+    if not granted:
+        AccessLog.objects.create(
+            client=client,
+            resultado=granted,
+            motivo=motivo,
+        )
+        return granted, motivo
 
     AccessLog.objects.create(
         client=client,
-        resultado=False,
-        motivo="Fuera de horario permitido",
+        resultado=True,
+        motivo=motivo,
     )
-    return False, "Fuera de horario permitido"
+    return granted, motivo
 
 
 def _suspended_since_display(client, today=None):

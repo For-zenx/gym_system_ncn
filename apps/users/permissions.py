@@ -60,6 +60,7 @@ PERMISSION_GROUPS = {
         "label": "Accesos",
         "permissions": [
             ("access.view_logs", "Ver historial de accesos"),
+            ("access.open_turnstile", "Abrir torniquete manualmente"),
         ],
     },
     "reports": {
@@ -109,6 +110,7 @@ CASHIER_PERMISSION_CODES = [
     "plans.view",
     "products.view",
     "access.view_logs",
+    "access.open_turnstile",
     "reports.view",
     "reports.send",
 ]

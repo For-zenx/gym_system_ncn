@@ -26,6 +26,9 @@
                 {% if 'access.view_logs' in user_permissions %}
                 <a href="{% url 'access:access_log_list' %}" class="nav-item {% if request.resolver_match.url_name == 'access_log_list' %}active{% endif %}">Historial de acceso</a>
                 {% endif %}
+                {% if 'access.open_turnstile' in user_permissions %}
+                <a href="{% url 'access:turnstile_control' %}" class="nav-item {% if request.resolver_match.url_name == 'turnstile_control' %}active{% endif %}">Torniquete</a>
+                {% endif %}
                 {% if 'billing.view_invoices' in user_permissions %}
                 <a href="{% url 'billing:invoice_list' %}" class="nav-item {% if request.resolver_match.url_name == 'invoice_list' %}active{% endif %}">Historial de facturas</a>
                 {% endif %}

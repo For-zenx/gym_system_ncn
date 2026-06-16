@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Torniquete - Perfect Line II{% endblock %}
+{% block page_title %}Torniquete{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/turnstile.css' %}?v=1.2">
+{% endblock %}
+
+{% block content %}
+<div class="turnstile-page" id="turnstile-page"
+     data-search-url="{{ search_url }}"
+     data-reason-other="{{ reason_other }}">
+
+    {% if not turnstile_configured %}
+    <div class="turnstile-banner turnstile-banner-error">
+        El torniquete no está disponible en este momento. Avise al administrador.
+    </div>
+    {% endif %}
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="turnstile-banner {% if message.tags == 'success' %}turnstile-banner-success{% else %}turnstile-banner-error{% endif %}">
+        <span>{{ message }}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <section class="card turnstile-form-card">
+        <h2>Apertura manual</h2>
+
+        <form method="post" class="turnstile-form" id="turnstile-form">
+            {% csrf_token %}
+            <input type="hidden" name="client_id" id="id_client_id" value="{{ form.client_id.value|default:'' }}">
+
+            {% if form.non_field_errors %}
+            <div class="turnstile-form-errors">
+                {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div id="turnstile-search-block" class="turnstile-field">
+                <label for="turnstile-client-search">Afiliado</label>
+                <input type="text"
+                       id="turnstile-client-search"
+                       class="turnstile-input"
+                       placeholder="Buscar por nombre, cédula o código..."
+                       autocomplete="off">
+                <div id="turnstile-search-results" class="turnstile-search-results" hidden></div>
+            </div>
+
+            <div id="turnstile-selected-client" class="turnstile-selected-client" hidden>
+                <div class="turnstile-selected-info">
+                    <strong id="turnstile-selected-name"></strong>
+                    <span id="turnstile-selected-meta" class="turnstile-subtext"></span>
+                </div>
+                <div class="turnstile-selected-actions">
+                    <button type="button" class="btn btn-secondary turnstile-change-btn" id="turnstile-change-client-btn">
+                        Cambiar
+                    </button>
+                    <button type="button" class="turnstile-link-btn" id="turnstile-no-client-from-selected-btn">
+                        Sin afiliado registrado
+                    </button>
+                </div>
+            </div>
+
+            <div class="turnstile-client-actions" id="turnstile-client-actions">
+                <button type="button" class="turnstile-link-btn" id="turnstile-no-client-btn">
+                    Sin afiliado registrado
+                </button>
+            </div>
+
+            <div id="turnstile-access-warning" class="turnstile-banner turnstile-banner-warning is-hidden"></div>
+
+            <div class="turnstile-field turnstile-conditional is-hidden" id="turnstile-person-block">
+                <label for="{{ form.person_name.id_for_label }}">Nombre de la persona</label>
+                {{ form.person_name }}
+                <button type="button" class="turnstile-link-btn" id="turnstile-back-to-search-btn">
+                    Buscar afiliado
+                </button>
+                {% for error in form.person_name.errors %}
+                <p class="turnstile-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="turnstile-field">
+                <label for="{{ form.reason.id_for_label }}">Razón</label>
+                {{ form.reason }}
+                {% for error in form.reason.errors %}
+                <p class="turnstile-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="turnstile-field turnstile-conditional is-hidden" id="turnstile-custom-reason-block">
+                <label for="{{ form.custom_reason.id_for_label }}">Explique la razón</label>
+                {{ form.custom_reason }}
+                {% for error in form.custom_reason.errors %}
+                <p class="turnstile-error-text">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="turnstile-actions">
+                <button type="submit" class="btn btn-primary" id="turnstile-submit-btn" {% if not turnstile_configured %}disabled{% endif %}>
+                    Abrir torniquete
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card turnstile-history-card">
+        <h2>Últimas aperturas manuales</h2>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Persona</th>
+                        <th>Razón</th>
+                        <th>Operador</th>
+                        <th>Resultado</th>
+                        <th>Detalle</th>
+                        <th>Fecha y hora</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for access in recent_accesses %}
+                    <tr>
+                        <td>
+                            <strong>{{ access.person_name }}</strong>
+                            {% if access.client %}
+                            <div class="turnstile-subtext">{{ access.client.codigo_afiliado }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ access.reason_label }}
+                            {% if access.custom_reason %}
+                            <div class="turnstile-subtext">{{ access.custom_reason }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ access.opened_by.staff_profile.display_name|default:access.opened_by.username|default:"—" }}</td>
+                        <td>
+                            {% if access.hardware_success %}
+                            <span class="turnstile-badge turnstile-badge-success">Abierto</span>
+                            {% else %}
+                            <span class="turnstile-badge turnstile-badge-danger">No abrió</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if access.membership_warning %}
+                            <div class="turnstile-subtext turnstile-warning-text">{{ access.membership_warning }}</div>
+                            {% elif access.hardware_error_display %}
+                            <div class="turnstile-subtext">{{ access.hardware_error_display }}</div>
+                            {% else %}
+                            <div class="turnstile-subtext">—</div>
+                            {% endif %}
+                        </td>
+                        <td class="turnstile-time-cell">
+                            {{ access.timestamp|date:"d/m/Y" }}<br>
+                            <span>{{ access.timestamp|date:"H:i:s" }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="turnstile-empty-row">
+                            Aún no hay aperturas manuales registradas.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+{% if restore_form and selected_client %}
+<script>
+    window.turnstileInitialClient = {
+        id: {{ selected_client.pk }},
+        nombre: "{{ selected_client.nombre|escapejs }}",
+        cedula: "{{ selected_client.cedula|escapejs }}",
+        codigo_afiliado: "{{ selected_client.codigo_afiliado|escapejs }}",
+        access_warning: "{{ client_access_warning|escapejs }}"
+    };
+</script>
+{% elif restore_form and guest_mode %}
+<script>
+    window.turnstileInitialGuest = true;
+</script>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/turnstile.js' %}?v=1.1"></script>
+{% endblock %}
