@@ -155,4 +155,4 @@ def test_client_profile__active_services_display(
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "Toallas Test" in content
-    assert "Servicios activos" in content
+    assert "Extras vigentes" in content

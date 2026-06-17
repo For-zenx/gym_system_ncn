@@ -5,7 +5,7 @@
 {% block page_title %}Perfil del Afiliado{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3.3">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3.4">
 {% endblock %}
 
 {% block content %}
@@ -96,28 +96,34 @@
                 </div>
                 {% endif %}
 
-                <div class="profile-caja-line">
-                    <dt>Casillero</dt>
+                <div class="profile-caja-line profile-extras-block">
+                    <dt>Extras vigentes</dt>
                     <dd>
-                        {% if active_locker_rental %}
-                        Casillero <strong>{{ active_locker_rental.locker.number }}</strong> hasta <strong>{{ active_locker_rental.end_date|date:"d/m/Y" }}</strong>
-                        {% else %}
-                        Sin casillero activo
-                        {% endif %}
-                    </dd>
-                </div>
-
-                <div class="profile-caja-line">
-                    <dt>Servicios activos</dt>
-                    <dd>
-                        {% if active_service_periods %}
-                        <ul class="profile-service-list">
-                            {% for period in active_service_periods %}
-                            <li>{{ period.sale_item.name }} vigente hasta <strong>{{ period.end_date|date:"d/m/Y" }}</strong></li>
+                        {% if display_locker_rentals or display_service_periods %}
+                        <ul class="profile-extras-list">
+                            {% for rental in display_locker_rentals %}
+                            <li class="profile-extras-item">
+                                Casillero <strong>{{ rental.locker.number }}</strong>
+                                {% if rental.status == 'QUEUED' %}
+                                · por iniciar el <strong>{{ rental.start_date|date:"d/m/Y" }}</strong>
+                                {% else %}
+                                · vigente hasta <strong>{{ rental.end_date|date:"d/m/Y" }}</strong>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                            {% for period in display_service_periods %}
+                            <li class="profile-extras-item">
+                                {{ period.sale_item.name }}
+                                {% if period.status == 'QUEUED' %}
+                                · por iniciar el <strong>{{ period.start_date|date:"d/m/Y" }}</strong>
+                                {% else %}
+                                · vigente hasta <strong>{{ period.end_date|date:"d/m/Y" }}</strong>
+                                {% endif %}
+                            </li>
                             {% endfor %}
                         </ul>
                         {% else %}
-                        Sin servicios adicionales activos
+                        Sin extras contratados
                         {% endif %}
                     </dd>
                 </div>
@@ -130,51 +136,54 @@
                 {% endif %}
             </dl>
 
-            {% if subscription_summary.fixed_groups_detail %}
-            <details class="profile-period-details">
-                <summary>Ver detalle de periodos</summary>
-                <ul class="profile-period-groups">
-                    {% for group in subscription_summary.fixed_groups_detail %}
-                    <li class="profile-period-group profile-period-{{ group.status }}">
-                        <span class="profile-period-plan">{{ group.plan_name }}</span>
-                        <span class="profile-period-range">{{ group.start_display }} → {{ group.end_display }}</span>
-                        <span class="profile-period-meta">
-                            {% if group.period_count > 1 %}{{ group.period_count }} periodos{% else %}1 periodo{% endif %}
-                            · {% if group.status == "active" %}Vigente{% elif group.status == "queued" %}Por iniciar{% else %}Vencido{% endif %}
-                        </span>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </details>
-            {% endif %}
-
-            {% if locker_rentals %}
-            <details class="profile-period-details">
-                <summary>Ver historial de casilleros</summary>
-                <ul class="profile-period-groups">
-                    {% for rental in locker_rentals %}
-                    <li class="profile-period-group">
-                        <span class="profile-period-plan">Casillero {{ rental.locker.number }}</span>
-                        <span class="profile-period-range">{{ rental.start_date|date:"d/m/Y" }} → {{ rental.end_date|date:"d/m/Y" }}</span>
-                        <span class="profile-period-meta">{{ rental.get_status_display }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </details>
-            {% endif %}
-
-            {% if service_periods %}
-            <details class="profile-period-details">
-                <summary>Ver historial de servicios</summary>
-                <ul class="profile-period-groups">
-                    {% for period in service_periods %}
-                    <li class="profile-period-group">
-                        <span class="profile-period-plan">{{ period.sale_item.name }}</span>
-                        <span class="profile-period-range">{{ period.start_date|date:"d/m/Y" }} → {{ period.end_date|date:"d/m/Y" }}</span>
-                        <span class="profile-period-meta">{{ period.get_status_display }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
+            {% if has_profile_history %}
+            <details class="profile-period-details profile-history-details">
+                <summary>Ver historial completo</summary>
+                {% if subscription_summary.fixed_groups_detail %}
+                <div class="profile-history-section">
+                    <p class="profile-history-heading">Periodos de plan</p>
+                    <ul class="profile-period-groups">
+                        {% for group in subscription_summary.fixed_groups_detail %}
+                        <li class="profile-period-group profile-period-{{ group.status }}">
+                            <span class="profile-period-plan">{{ group.plan_name }}</span>
+                            <span class="profile-period-range">{{ group.start_display }} → {{ group.end_display }}</span>
+                            <span class="profile-period-meta">
+                                {% if group.period_count > 1 %}{{ group.period_count }} periodos{% else %}1 periodo{% endif %}
+                                · {% if group.status == "active" %}Vigente{% elif group.status == "queued" %}Por iniciar{% else %}Vencido{% endif %}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if service_periods %}
+                <div class="profile-history-section">
+                    <p class="profile-history-heading">Servicios</p>
+                    <ul class="profile-period-groups">
+                        {% for period in service_periods %}
+                        <li class="profile-period-group">
+                            <span class="profile-period-plan">{{ period.sale_item.name }}</span>
+                            <span class="profile-period-range">{{ period.start_date|date:"d/m/Y" }} → {{ period.end_date|date:"d/m/Y" }}</span>
+                            <span class="profile-period-meta">{{ period.get_status_display }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if locker_rentals %}
+                <div class="profile-history-section">
+                    <p class="profile-history-heading">Casilleros</p>
+                    <ul class="profile-period-groups">
+                        {% for rental in locker_rentals %}
+                        <li class="profile-period-group">
+                            <span class="profile-period-plan">Casillero {{ rental.locker.number }}</span>
+                            <span class="profile-period-range">{{ rental.start_date|date:"d/m/Y" }} → {{ rental.end_date|date:"d/m/Y" }}</span>
+                            <span class="profile-period-meta">{{ rental.get_status_display }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
             </details>
             {% endif %}
 

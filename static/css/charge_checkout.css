@@ -380,6 +380,20 @@
     flex-wrap: wrap;
 }
 
+.checkout-product-line--locker {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.checkout-product-line--locker .checkout-product-line-info,
+.checkout-product-line--locker .checkout-locker-fields {
+    width: 100%;
+}
+
+.checkout-product-line--locker .checkout-product-line-remove {
+    align-self: flex-end;
+}
+
 .checkout-product-line-info {
     flex: 1;
     min-width: 140px;
@@ -584,7 +598,7 @@
 
 .checkout-locker-fields {
     display: grid;
-    grid-template-columns: minmax(12rem, 1.5fr) minmax(8rem, 1fr) minmax(8rem, 1fr);
+    grid-template-columns: minmax(12rem, 1fr) minmax(10rem, 1fr);
     gap: 0.75rem;
     width: 100%;
     margin-top: 0.85rem;

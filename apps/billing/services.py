@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
@@ -530,15 +531,48 @@ def _validate_checkout_product_lines(product_lines, plan):
 
 
 def expire_overdue_service_periods():
+    sync_service_period_statuses()
+
+
+def sync_service_period_statuses():
     today = timezone.localdate()
+    ClientServicePeriod.objects.filter(
+        status=ClientServicePeriod.Status.QUEUED,
+        start_date__lte=today,
+        end_date__gte=today,
+    ).update(status=ClientServicePeriod.Status.ACTIVE)
+
     ClientServicePeriod.objects.filter(
         status=ClientServicePeriod.Status.ACTIVE,
         end_date__lt=today,
     ).update(status=ClientServicePeriod.Status.EXPIRED)
 
 
+def _periods_overlap(start_a, end_a, start_b, end_b):
+    return start_a <= end_b and start_b <= end_a
+
+
+def validate_service_period_for_membership(client, sale_item, start_date, end_date):
+    sync_service_period_statuses()
+    overlapping = ClientServicePeriod.objects.filter(
+        client=client,
+        sale_item=sale_item,
+        status__in=[
+            ClientServicePeriod.Status.ACTIVE,
+            ClientServicePeriod.Status.QUEUED,
+        ],
+    )
+    for period in overlapping:
+        if _periods_overlap(period.start_date, period.end_date, start_date, end_date):
+            raise ValidationError(
+                "Este afiliado ya tiene el servicio «{}» en el periodo del cobro.".format(
+                    sale_item.name
+                )
+            )
+
+
 def validate_service_period_available(client, sale_item):
-    expire_overdue_service_periods()
+    sync_service_period_statuses()
     if ClientServicePeriod.objects.filter(
         client=client,
         sale_item=sale_item,
@@ -547,6 +581,13 @@ def validate_service_period_available(client, sale_item):
         raise ValidationError(
             "Este afiliado ya tiene el servicio «{}» activo.".format(sale_item.name)
         )
+
+
+def _resolve_service_period_status(start_date):
+    today = timezone.localdate()
+    if start_date > today:
+        return ClientServicePeriod.Status.QUEUED
+    return ClientServicePeriod.Status.ACTIVE
 
 
 @transaction.atomic
@@ -559,11 +600,11 @@ def create_service_period(
     end_date=None,
     user=None,
 ):
-    validate_service_period_available(client, sale_item)
     if start_date is None:
         start_date = membership.fecha_inicio
     if end_date is None:
         end_date = membership.fecha_fin
+    validate_service_period_for_membership(client, sale_item, start_date, end_date)
     return ClientServicePeriod.objects.create(
         client=client,
         sale_item=sale_item,
@@ -571,12 +612,13 @@ def create_service_period(
         invoice_line=invoice_line,
         start_date=start_date,
         end_date=end_date,
+        status=_resolve_service_period_status(start_date),
         created_by=user if getattr(user, "is_authenticated", False) else None,
     )
 
 
 def get_active_service_periods_for_client(client):
-    expire_overdue_service_periods()
+    sync_service_period_statuses()
     today = timezone.localdate()
     return (
         ClientServicePeriod.objects.filter(
@@ -586,6 +628,22 @@ def get_active_service_periods_for_client(client):
         )
         .select_related("sale_item", "membership")
         .order_by("end_date", "id")
+    )
+
+
+def get_display_service_periods_for_client(client):
+    sync_service_period_statuses()
+    today = timezone.localdate()
+    return (
+        ClientServicePeriod.objects.filter(
+            client=client,
+        )
+        .filter(
+            Q(status=ClientServicePeriod.Status.ACTIVE, end_date__gte=today)
+            | Q(status=ClientServicePeriod.Status.QUEUED, start_date__gt=today)
+        )
+        .select_related("sale_item", "membership")
+        .order_by("start_date", "id")
     )
 
 
@@ -716,6 +774,11 @@ def register_checkout(
                 line_membership = membership
 
             if sale_item.requires_locker_assignment:
+                qty = 1
+            elif sale_item.is_plan_linked_service:
+                qty = 1
+
+            if sale_item.requires_locker_assignment:
                 if qty != 1:
                     raise ValidationError("Los servicios de casillero se cobran de uno en uno.")
                 from apps.lockers.services import (
@@ -740,7 +803,12 @@ def register_checkout(
                     "sale_item": sale_item,
                 }
             elif sale_item.is_plan_linked_service:
-                validate_service_period_available(client, sale_item)
+                validate_service_period_for_membership(
+                    client,
+                    sale_item,
+                    membership.fecha_inicio,
+                    membership.fecha_fin,
+                )
                 service_payload = {
                     "sale_item": sale_item,
                     "start_date": membership.fecha_inicio,

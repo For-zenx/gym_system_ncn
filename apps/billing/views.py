@@ -248,7 +248,7 @@ class ChargeCheckoutView(PermissionRequiredMixin, View):
                 for item in sale_items
             ]
         )
-        from apps.lockers.services import get_available_lockers
+        from apps.lockers.services import get_lockers_for_checkout
 
         context["available_lockers_json"] = json.dumps(
             [
@@ -256,7 +256,7 @@ class ChargeCheckoutView(PermissionRequiredMixin, View):
                     "id": locker.pk,
                     "number": locker.number,
                 }
-                for locker in get_available_lockers()
+                for locker in get_lockers_for_checkout(client)
             ]
         )
         return render(request, "billing/charge_checkout.html", context)

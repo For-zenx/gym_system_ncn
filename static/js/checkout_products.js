@@ -68,6 +68,25 @@
             return ids;
         }
 
+        function isSingleUnitItem(item) {
+            return item && (item.item_type === 'SERVICE' || item.requires_locker_assignment);
+        }
+
+        function refreshPickerQtyVisibility() {
+            if (!picker || !pickerQty) {
+                return;
+            }
+            const qtyField = pickerQty.closest('.checkout-product-field--qty');
+            if (!qtyField) {
+                return;
+            }
+            const item = picker.value ? catalogById(picker.value) : null;
+            qtyField.style.display = isSingleUnitItem(item) ? 'none' : '';
+            if (isSingleUnitItem(item)) {
+                pickerQty.value = '1';
+            }
+        }
+
         function isServiceItem(item) {
             return item && item.item_type === 'SERVICE';
         }
@@ -196,6 +215,7 @@
 
             refreshPickerOptions();
             updateLockerPeriodFields();
+            refreshPickerQtyVisibility();
 
             if (confirmBtn) {
                 const servicesNeedPlan = hasServiceLinesSelected() && !hasPlanSelected();
@@ -254,20 +274,30 @@
             info.appendChild(nameEl);
             info.appendChild(metaEl);
 
-            const qtyLabel = document.createElement('label');
-            qtyLabel.className = 'checkout-product-line-qty-label';
-            qtyLabel.appendChild(document.createTextNode('Cant.'));
-            const qtyInput = document.createElement('input');
-            qtyInput.type = 'number';
-            qtyInput.className = 'checkout-product-line-qty form-control';
-            qtyInput.name = 'product_qty_' + item.id;
-            qtyInput.min = '1';
-            if (item.requires_locker_assignment || isServiceItem(item)) {
-                qtyInput.max = '1';
-                qtyInput.readOnly = true;
+            line.appendChild(hidden);
+            line.appendChild(info);
+
+            if (isSingleUnitItem(item)) {
+                const qtyHidden = document.createElement('input');
+                qtyHidden.type = 'hidden';
+                qtyHidden.className = 'checkout-product-line-qty';
+                qtyHidden.name = 'product_qty_' + item.id;
+                qtyHidden.value = '1';
+                line.appendChild(qtyHidden);
+            } else {
+                const qtyLabel = document.createElement('label');
+                qtyLabel.className = 'checkout-product-line-qty-label';
+                qtyLabel.appendChild(document.createTextNode('Cant.'));
+                const qtyInput = document.createElement('input');
+                qtyInput.type = 'number';
+                qtyInput.className = 'checkout-product-line-qty form-control';
+                qtyInput.name = 'product_qty_' + item.id;
+                qtyInput.min = '1';
+                qtyInput.value = String(qty);
+                qtyLabel.appendChild(qtyInput);
+                line.appendChild(qtyLabel);
+                qtyInput.addEventListener('input', refreshSummary);
             }
-            qtyInput.value = String(qty);
-            qtyLabel.appendChild(qtyInput);
 
             const lockerFields = buildLockerFields(item);
             const removeBtn = document.createElement('button');
@@ -275,15 +305,12 @@
             removeBtn.className = 'btn btn-secondary checkout-product-line-remove';
             removeBtn.textContent = 'Quitar';
 
-            line.appendChild(hidden);
-            line.appendChild(info);
-            line.appendChild(qtyLabel);
             if (lockerFields) {
+                line.classList.add('checkout-product-line--locker');
                 line.appendChild(lockerFields);
             }
             line.appendChild(removeBtn);
 
-            qtyInput.addEventListener('input', refreshSummary);
             removeBtn.addEventListener('click', function () {
                 line.remove();
                 refreshPickerOptions();
@@ -367,7 +394,7 @@
             if (linesContainer.querySelector('[data-item-id="' + item.id + '"]')) {
                 return;
             }
-            const lineQty = item.requires_locker_assignment || isServiceItem(item) ? 1 : qty;
+            const lineQty = isSingleUnitItem(item) ? 1 : qty;
             linesContainer.appendChild(buildLineElement(item, lineQty));
             picker.value = '';
             if (pickerQty) {
@@ -379,6 +406,10 @@
 
         if (addBtn) {
             addBtn.addEventListener('click', addProductFromPicker);
+        }
+
+        if (picker) {
+            picker.addEventListener('change', refreshPickerQtyVisibility);
         }
 
         const planSelect = document.getElementById('plan_id');

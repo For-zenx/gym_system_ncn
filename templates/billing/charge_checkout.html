@@ -6,7 +6,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3.2">
-<link rel="stylesheet" href="{% static 'css/charge_checkout.css' %}?v=2.5">
+<link rel="stylesheet" href="{% static 'css/charge_checkout.css' %}?v=2.6">
 {% endblock %}
 
 {% block content %}
@@ -82,7 +82,7 @@
 {% block extra_js %}
 <script src="{% static 'js/billing_numbers.js' %}?v=1.0"></script>
 <script src="{% static 'js/cut_date_motivo.js' %}?v=1.0"></script>
-<script src="{% static 'js/checkout_products.js' %}?v=1.5"></script>
+<script src="{% static 'js/checkout_products.js' %}?v=1.6"></script>
 <script src="{% static 'js/billing_payment.js' %}?v=1.8"></script>
 <script>
     const tasaDiaStr = "{{ latest_rate.tasa_ves|default:'0' }}".replace(',', '.');

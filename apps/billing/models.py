@@ -332,6 +332,7 @@ class Membership(models.Model):
 class ClientServicePeriod(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "ACTIVE", "Activo"
+        QUEUED = "QUEUED", "Por iniciar"
         EXPIRED = "EXPIRED", "Vencido"
         CANCELLED = "CANCELLED", "Cancelado"
 
