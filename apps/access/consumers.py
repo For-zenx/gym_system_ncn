@@ -6,7 +6,11 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from apps.access import ai_engine
-from apps.access.services import build_tablet_access_payload, check_access_integrity
+from apps.access.services import (
+    build_tablet_access_payload,
+    check_access_integrity,
+    pulse_turnstile_if_granted,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +86,8 @@ class AccessTabletConsumer(AsyncWebsocketConsumer):
 
         mem_data = await database_sync_to_async(get_membership_data)(client)
         granted, detail = await database_sync_to_async(check_access_integrity)(client)
+
+        await database_sync_to_async(pulse_turnstile_if_granted)(granted)
 
         tablet_payload = await database_sync_to_async(build_tablet_access_payload)(
             client, granted, detail, mem_data

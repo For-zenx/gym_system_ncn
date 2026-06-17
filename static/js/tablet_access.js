@@ -64,6 +64,9 @@ function clearAccessResult() {
 }
 
 function formatCutLine(data) {
+    if (data.covered_until_display) {
+        return 'Vigente hasta ' + data.covered_until_display;
+    }
     if (data.next_cut_display) {
         return 'Próximo corte: ' + data.next_cut_display;
     }

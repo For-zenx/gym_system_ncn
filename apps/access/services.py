@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 from apps.billing.cycle import (
     days_until_next_cut_date,
@@ -6,7 +7,12 @@ from apps.billing.cycle import (
     next_cut_date,
     unpaid_fixed_periods,
 )
+from apps.billing.services import get_profile_subscription_summary
+
+from .hardware import open_turnstile
 from .models import AccessLog
+
+logger = logging.getLogger(__name__)
 
 
 def evaluate_access_integrity(client):
@@ -82,6 +88,25 @@ def _classify_denied_variant(client, detail):
     return "denied_other"
 
 
+def _tablet_covered_until_display(client):
+    summary = get_profile_subscription_summary(client)
+    fixed = summary.get("fixed_line") or {}
+    if fixed.get("kind") == "active":
+        return fixed.get("covered_until_display")
+    flex = summary.get("flexible_line")
+    if flex:
+        return flex.get("until_display")
+    return None
+
+
+def pulse_turnstile_if_granted(granted):
+    if not granted:
+        return
+    result = open_turnstile()
+    if not result.success:
+        logger.error("Fallo al abrir torniquete tras acceso concedido: %s", result.message)
+
+
 def build_tablet_access_payload(client, granted, detail, membership_data=None):
     today = datetime.date.today()
     next_cut = next_cut_date(client, today)
@@ -96,6 +121,7 @@ def build_tablet_access_payload(client, granted, detail, membership_data=None):
         "days_membership_left": None,
         "plan_name": None,
         "suspended_since_display": None,
+        "covered_until_display": None,
     }
 
     if membership_data:
@@ -105,6 +131,7 @@ def build_tablet_access_payload(client, granted, detail, membership_data=None):
     if granted:
         payload["status"] = "GRANTED"
         payload["variant"] = "granted"
+        payload["covered_until_display"] = _tablet_covered_until_display(client)
         return payload
 
     payload["status"] = "DENIED"
