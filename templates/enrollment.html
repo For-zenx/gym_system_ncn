@@ -5,7 +5,7 @@
 {% block page_title %}Enrolamiento de Nuevo Afiliado{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=2.0">
+<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=2.1">
 {% endblock %}
 
 {% block content %}
@@ -47,6 +47,11 @@
 
     <div class="form-section">
         <h2 style="margin-bottom: 1.5rem; color: #10b981;">Datos del Afiliado</h2>
+
+        <div id="enrollment-cedula-warning" class="enrollment-cedula-warning" role="alert">
+            Esta cédula ya pertenece a un afiliado registrado.
+            <a id="enrollment-cedula-re-enroll-link" href="#">Ir a re-enrolar</a>
+        </div>
 
         {% if messages %}
             {% for message in messages %}
@@ -138,16 +143,17 @@
 <script>
     const offlineOverlay = document.getElementById('tablet-offline-overlay');
     const ENROLLMENT_TABLET_ROLE = 'enrollment';
-    const TERMS_LOOKUP_URL = "{% url 'enrollment_terms_lookup' %}";
+    const CEDULA_CHECK_URL = "{% url 'enrollment_cedula_check' %}";
     const termsStatusEl = document.getElementById('enrollment-terms-status');
     const termsAcceptedInput = document.getElementById('input-terms-accepted');
     const cedulaPrefixInput = document.getElementById('cedula_prefix');
     const cedulaNumeroInput = document.getElementById('cedula_numero');
+    const cedulaWarningEl = document.getElementById('enrollment-cedula-warning');
+    const cedulaReEnrollLink = document.getElementById('enrollment-cedula-re-enroll-link');
     let enrollmentPhotoReady = false;
     let enrollmentTermsMet = false;
-    let tabletTermsAcceptedThisSession = false;
-    let termsLookupTimer = null;
-    let lastLookupTermsStored = null;
+    let cedulaExists = false;
+    let cedulaCheckTimer = null;
 
     function setTermsStatus(state, message) {
         if (!termsStatusEl) {
@@ -167,17 +173,15 @@
         const saveButton = document.getElementById('enrollment-form')
             ? document.getElementById('enrollment-form').querySelector('.btn-enrollment-save')
             : null;
-        const canSave = enrollmentPhotoReady && enrollmentTermsMet;
+        const canSave = enrollmentPhotoReady && enrollmentTermsMet && !cedulaExists;
         if (saveButton) {
             saveButton.disabled = !canSave;
         }
         syncTermsAcceptedInput();
     }
 
-    function resetEnrollmentTermsState() {
+    function resetEnrollmentSessionState() {
         enrollmentTermsMet = false;
-        tabletTermsAcceptedThisSession = false;
-        lastLookupTermsStored = null;
         if (enrollmentPhotoReady) {
             setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
         } else {
@@ -186,69 +190,43 @@
         updateEnrollmentSaveState();
     }
 
-    function applyTermsStatusAfterLookup(termsAlreadyStored) {
-        if (termsAlreadyStored) {
-            enrollmentTermsMet = true;
-            setTermsStatus('stored', 'Términos ya registrados para este afiliado');
-            return;
+    function setCedulaWarning(visible, reEnrollUrl) {
+        cedulaExists = visible;
+        if (cedulaWarningEl) {
+            cedulaWarningEl.classList.toggle('is-visible', visible);
         }
-        if (tabletTermsAcceptedThisSession) {
-            enrollmentTermsMet = true;
-            setTermsStatus('accepted', 'Términos aceptados en la tablet');
-            return;
+        if (cedulaReEnrollLink && reEnrollUrl) {
+            cedulaReEnrollLink.href = reEnrollUrl;
         }
-        if (enrollmentPhotoReady) {
-            enrollmentTermsMet = false;
-            setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
-        }
+        updateEnrollmentSaveState();
     }
 
-    function lookupEnrollmentTerms() {
+    function lookupEnrollmentCedula() {
         if (!cedulaPrefixInput || !cedulaNumeroInput) {
             return;
         }
         const numero = (cedulaNumeroInput.value || '').trim();
         if (numero.length < 6) {
-            if (enrollmentPhotoReady && !tabletTermsAcceptedThisSession) {
-                enrollmentTermsMet = false;
-                setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
-                updateEnrollmentSaveState();
-            }
+            setCedulaWarning(false);
             return;
         }
         const params = new URLSearchParams({
             cedula_prefix: cedulaPrefixInput.value || 'V-',
             cedula_numero: numero,
         });
-        fetch(TERMS_LOOKUP_URL + '?' + params.toString(), { credentials: 'same-origin' })
+        fetch(CEDULA_CHECK_URL + '?' + params.toString(), { credentials: 'same-origin' })
             .then(function (response) { return response.json(); })
             .then(function (data) {
-                const termsStored = !!data.terms_already_accepted;
-                const wasStored = lastLookupTermsStored;
-                lastLookupTermsStored = termsStored;
-
-                if (termsStored && enrollmentPhotoReady) {
-                    window.sendDashboardCommand({ type: 'ENROLLMENT_SKIP_TERMS' });
-                } else if (!termsStored && enrollmentPhotoReady && wasStored === true) {
-                    tabletTermsAcceptedThisSession = false;
-                    window.sendDashboardCommand({ type: 'ENROLLMENT_REQUIRE_TERMS' });
-                }
-
-                applyTermsStatusAfterLookup(termsStored);
-                updateEnrollmentSaveState();
+                setCedulaWarning(!!data.exists, data.re_enroll_url || null);
             })
             .catch(function () {
-                if (enrollmentPhotoReady && !tabletTermsAcceptedThisSession) {
-                    enrollmentTermsMet = false;
-                    setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
-                    updateEnrollmentSaveState();
-                }
+                setCedulaWarning(false);
             });
     }
 
-    function scheduleTermsLookup() {
-        clearTimeout(termsLookupTimer);
-        termsLookupTimer = setTimeout(lookupEnrollmentTerms, 350);
+    function scheduleCedulaCheck() {
+        clearTimeout(cedulaCheckTimer);
+        cedulaCheckTimer = setTimeout(lookupEnrollmentCedula, 350);
     }
 
     function clearEnrollmentPhoto() {
@@ -264,8 +242,7 @@
         }
         input.value = '';
         enrollmentPhotoReady = false;
-        resetEnrollmentTermsState();
-        updateEnrollmentSaveState();
+        resetEnrollmentSessionState();
     }
 
     window.addEventListener('tabletStatusChanged', function (e) {
@@ -283,24 +260,23 @@
     });
 
     window.addEventListener('enrollmentPhotoReceived', function (e) {
-        const photoType = e.detail.photoType;
-        const image = e.detail.image;
-        if (photoType !== 'FRONT') {
+        if (e.detail.photoType !== 'FRONT') {
             return;
         }
         const imgElement = document.getElementById('img-frente');
         const inputElement = document.getElementById('input-foto-frente');
-        imgElement.src = image;
+        imgElement.src = e.detail.image;
         imgElement.style.display = 'block';
         imgElement.previousElementSibling.style.display = 'none';
-        inputElement.value = image;
+        inputElement.value = e.detail.image;
         enrollmentPhotoReady = true;
-        scheduleTermsLookup();
+        if (!enrollmentTermsMet) {
+            setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
+        }
         updateEnrollmentSaveState();
     });
 
     window.addEventListener('enrollmentTermsAccepted', function () {
-        tabletTermsAcceptedThisSession = true;
         enrollmentTermsMet = true;
         setTermsStatus('accepted', 'Términos aceptados en la tablet');
         updateEnrollmentSaveState();
@@ -316,11 +292,11 @@
     }
 
     if (cedulaPrefixInput) {
-        cedulaPrefixInput.addEventListener('change', scheduleTermsLookup);
+        cedulaPrefixInput.addEventListener('change', scheduleCedulaCheck);
     }
     if (cedulaNumeroInput) {
-        cedulaNumeroInput.addEventListener('input', scheduleTermsLookup);
-        cedulaNumeroInput.addEventListener('blur', scheduleTermsLookup);
+        cedulaNumeroInput.addEventListener('input', scheduleCedulaCheck);
+        cedulaNumeroInput.addEventListener('blur', scheduleCedulaCheck);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -357,19 +333,12 @@
     const processErrorMessage = document.getElementById('enrollment-process-error-message');
     const processCloseBtn = document.getElementById('enrollment-process-close-btn');
     const saveButton = enrollmentForm ? enrollmentForm.querySelector('.btn-enrollment-save') : null;
+    const processCloseX = document.getElementById('enrollment-process-close-x');
 
     function showProcessState(state) {
         processLoading.classList.toggle('hidden', state !== 'loading');
         processSuccess.classList.toggle('hidden', state !== 'success');
         processError.classList.toggle('hidden', state !== 'error');
-    }
-
-    var processCloseX = document.getElementById('enrollment-process-close-x');
-
-    function setEnrollmentDismissEnabled(enabled) {
-        if (processCloseX) {
-            processCloseX.hidden = !enabled;
-        }
     }
 
     function enrollmentDismissAllowed() {
@@ -380,16 +349,18 @@
         showProcessState(state);
         processModal.classList.add('show');
         processModal.setAttribute('aria-hidden', 'false');
-        setEnrollmentDismissEnabled(state === 'error');
+        if (processCloseX) {
+            processCloseX.hidden = state !== 'error';
+        }
     }
 
     function closeProcessModal() {
         processModal.classList.remove('show');
         processModal.setAttribute('aria-hidden', 'true');
-        setEnrollmentDismissEnabled(false);
-        if (saveButton) {
-            saveButton.disabled = false;
+        if (processCloseX) {
+            processCloseX.hidden = true;
         }
+        updateEnrollmentSaveState();
     }
 
     if (processCloseBtn) {
@@ -404,6 +375,11 @@
     if (enrollmentForm) {
         enrollmentForm.addEventListener('submit', function (event) {
             event.preventDefault();
+            if (cedulaExists) {
+                processErrorMessage.textContent = 'Esta cédula ya está registrada. Use Re-enrolar desde el perfil del afiliado.';
+                openProcessModal('error');
+                return;
+            }
             if (!enrollmentPhotoReady) {
                 processErrorMessage.textContent = 'Debe capturar la foto del afiliado en la tablet.';
                 openProcessModal('error');

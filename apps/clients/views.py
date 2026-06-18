@@ -1,10 +1,12 @@
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.generic import DetailView, ListView
 from django.views import View
 from django.contrib import messages
+from django.http import JsonResponse
 from django.db.models import Q
 from .models import Client
-from .services import delete_client
+from .services import delete_client, replace_client_front_photo
 from .validation import validate_client_data, client_form_context, apply_client_fields
 from apps.billing.models import Plan, ExchangeRate, Invoice, ClientBillingEvent
 from apps.billing.services import (
@@ -141,3 +143,39 @@ class ClientDeleteView(PermissionRequiredMixin, View):
             f"Afiliado {nombre} eliminado. Las facturas emitidas permanecen en el historial con datos históricos.",
         )
         return redirect("clients:client_list")
+
+
+class ReEnrollClientView(PermissionRequiredMixin, View):
+    required_permission = "clients.edit"
+
+    def get(self, request, codigo_afiliado):
+        client = get_object_or_404(Client, codigo_afiliado=codigo_afiliado)
+        return render(request, "clients/re_enrollment.html", {"client": client})
+
+    def post(self, request, codigo_afiliado):
+        client = get_object_or_404(Client, codigo_afiliado=codigo_afiliado)
+        foto_frente_b64 = request.POST.get("foto_frente_base64")
+        wants_json = request.headers.get("X-Reenroll-Submit") == "1"
+        profile_url = reverse("clients:profile", kwargs={"codigo_afiliado": client.codigo_afiliado})
+
+        if not foto_frente_b64:
+            message = "Debe capturar la nueva foto del afiliado en la tablet de enrolamiento."
+            if wants_json:
+                return JsonResponse({"status": "error", "message": message}, status=400)
+            messages.error(request, message)
+            return redirect("clients:re_enroll", codigo_afiliado=codigo_afiliado)
+
+        try:
+            replace_client_front_photo(client, foto_frente_b64)
+        except Exception as exc:
+            message = f"No se pudo actualizar la foto facial: {exc}"
+            if wants_json:
+                return JsonResponse({"status": "error", "message": message}, status=400)
+            messages.error(request, message)
+            return redirect("clients:re_enroll", codigo_afiliado=codigo_afiliado)
+
+        success_message = f"Foto y datos biométricos de {client.nombre} actualizados correctamente."
+        if wants_json:
+            return JsonResponse({"status": "success", "redirect_url": profile_url})
+        messages.success(request, success_message)
+        return redirect("clients:profile", codigo_afiliado=codigo_afiliado)

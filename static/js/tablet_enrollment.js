@@ -25,6 +25,7 @@ let isModelsLoaded = false;
 let isCaptureActive = false;
 let captureCompleted = false;
 let termsAcceptedThisSession = false;
+let skipTermsAfterCapture = false;
 let lastCaptureTime = 0;
 let detectionLoopRunning = false;
 let stableSince = null;
@@ -84,7 +85,11 @@ function acceptTermsOnTablet() {
 
 function skipTermsOnTablet() {
     termsAcceptedThisSession = true;
-    completeEnrollmentIdle();
+    skipTermsAfterCapture = true;
+    hideTermsScreen();
+    if (captureCompleted) {
+        completeEnrollmentIdle();
+    }
 }
 
 function requireTermsOnTablet() {
@@ -139,7 +144,11 @@ async function detectFaceLoop() {
                         stopCamera();
                         faceGuide.classList.remove('active');
                         hudInstruction.classList.add('hidden');
-                        showTermsScreen();
+                        if (skipTermsAfterCapture) {
+                            completeEnrollmentIdle();
+                        } else {
+                            showTermsScreen();
+                        }
                     }, 1200);
                 } else {
                     hudText.textContent = 'Coloque su rostro en el óvalo';
@@ -223,6 +232,7 @@ function showIdleScreen() {
     isCaptureActive = false;
     captureCompleted = false;
     termsAcceptedThisSession = false;
+    skipTermsAfterCapture = false;
     detectionLoopRunning = false;
     resetStability();
 }
@@ -261,6 +271,7 @@ async function startEnrollmentSession() {
     hudText.textContent = 'Coloque su rostro en el óvalo';
     captureCompleted = false;
     termsAcceptedThisSession = false;
+    skipTermsAfterCapture = false;
     isCaptureActive = true;
     resetStability();
     setStatus('connected', 'Capturando');

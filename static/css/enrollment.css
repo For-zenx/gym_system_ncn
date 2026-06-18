@@ -351,3 +351,150 @@
     margin-top: 1.5rem;
     width: 100%;
 }
+
+.hidden {
+    display: none !important;
+}
+
+.enrollment-mode-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.enrollment-mode-badge--reenroll {
+    background-color: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.45);
+}
+
+.re-enrollment-container {
+    max-width: 900px;
+}
+
+.re-enrollment-top {
+    margin-bottom: 0.5rem;
+}
+
+.re-enrollment-section-title {
+    margin-bottom: 1.25rem;
+    color: #f59e0b;
+}
+
+.re-enrollment-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.re-enrollment-meta dt {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.re-enrollment-meta dd {
+    margin: 0;
+    font-weight: 600;
+}
+
+.re-enrollment-photo-compare {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    width: 100%;
+    max-width: 520px;
+    margin-top: 1.5rem;
+    z-index: 5;
+    position: relative;
+}
+
+.re-enrollment-photo-label {
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.re-enrollment-photo-slot {
+    width: 100%;
+    margin: 0;
+    position: relative;
+}
+
+.re-enrollment-photo-slot .re-enrollment-photo-img {
+    display: block;
+}
+
+.re-enrollment-photo-slot .re-enrollment-photo-img.hidden {
+    display: none !important;
+}
+
+.re-enrollment-photo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.re-enrollment-photo-empty,
+#new-photo-placeholder {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1rem;
+}
+
+.re-enrollment-flash {
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+
+.re-enrollment-flash--error {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid currentColor;
+}
+
+.re-enrollment-flash--success {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid currentColor;
+}
+
+.enrollment-cedula-warning {
+    display: none;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    color: #fbbf24;
+    font-size: 0.95rem;
+}
+
+.enrollment-cedula-warning.is-visible {
+    display: block;
+}
+
+.enrollment-cedula-warning a {
+    color: #fcd34d;
+    font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .re-enrollment-photo-compare {
+        grid-template-columns: 1fr;
+        max-width: 220px;
+    }
+}

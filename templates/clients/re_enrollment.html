@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Re-enrolamiento — {{ client.nombre }} — Perfect Line II{% endblock %}
+{% block page_title %}Re-enrolamiento biométrico{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=2.2">
+{% endblock %}
+
+{% block content %}
+<div class="enrollment-container re-enrollment-container">
+    <div class="re-enrollment-top">
+        <a href="{% url 'clients:profile' client.codigo_afiliado %}" class="btn btn-secondary">&larr; Volver al perfil</a>
+    </div>
+
+    <div class="camera-section">
+        <div id="tablet-offline-overlay" class="offline-overlay hidden">
+            <span style="font-size: 3rem; margin-bottom: 1rem;">📡</span>
+            <h3 style="color: #ef4444; margin-bottom: 0.5rem;">Tablet de Enrolamiento Desconectada</h3>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem; max-width: 350px;">
+                Se ha perdido la conexión con la tablet de enrolamiento o está apagada.
+            </p>
+            <button type="button" class="btn btn-primary" onclick="reconnectTablet()" style="padding: 0.75rem 1.5rem;">Intentar Reconectar</button>
+        </div>
+
+        <div style="text-align: center; z-index: 5;">
+            <div class="enrollment-mode-badge enrollment-mode-badge--reenroll">
+                RE-ENROLAMIENTO BIOMÉTRICO
+            </div>
+            <p style="color: var(--text-muted); max-width: 420px; margin: 0 auto;">
+                El afiliado debe tomarse una nueva foto en la tablet. Compare la foto actual con la nueva antes de guardar.
+            </p>
+        </div>
+
+        <div class="re-enrollment-photo-compare">
+            <div class="re-enrollment-photo-col">
+                <p class="re-enrollment-photo-label">Foto actual</p>
+                <div class="photo-slot re-enrollment-photo-slot">
+                    {% if client.foto_frente %}
+                    <img src="{{ client.foto_frente.url }}" alt="Foto actual" class="re-enrollment-photo-img">
+                    {% else %}
+                    <span class="re-enrollment-photo-empty">Sin foto registrada</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="re-enrollment-photo-col">
+                <p class="re-enrollment-photo-label">Nueva foto</p>
+                <div class="photo-slot re-enrollment-photo-slot">
+                    <span id="new-photo-placeholder">Esperando captura en tablet</span>
+                    <img id="img-frente" src="" alt="Nueva foto" class="re-enrollment-photo-img hidden">
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-secondary enrollment-retake-btn" onclick="retakeEnrollmentPhoto()">
+            Tomar otra foto
+        </button>
+        <div id="reenrollment-photo-status" class="enrollment-terms-status enrollment-terms-status--pending" role="status">
+            Esperando nueva foto en la tablet
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h2 class="re-enrollment-section-title">Afiliado</h2>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="re-enrollment-flash re-enrollment-flash--{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <dl class="re-enrollment-meta">
+            <div><dt>Nombre</dt><dd>{{ client.nombre }}</dd></div>
+            <div><dt>Cédula</dt><dd>{{ client.cedula }}</dd></div>
+            <div><dt>Código</dt><dd>{{ client.codigo_afiliado }}</dd></div>
+        </dl>
+
+        <form method="POST" action="{% url 'clients:re_enroll' client.codigo_afiliado %}" id="re-enrollment-form">
+            {% csrf_token %}
+            <input type="hidden" name="foto_frente_base64" id="input-foto-frente">
+
+            <div class="enrollment-form-actions">
+                <a href="{% url 'clients:profile' client.codigo_afiliado %}" class="btn btn-outline-light">Cancelar</a>
+                <button type="submit" class="btn btn-primary btn-enrollment-save" disabled>Guardar nueva foto</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="reenrollment-process-modal" class="modal-overlay enrollment-process-modal" aria-hidden="true">
+    <div class="modal-content modal-content-narrow enrollment-process-card" role="dialog" aria-modal="true">
+        <div class="modal-header">
+            <h2>Re-enrolamiento</h2>
+            <button type="button" class="modal-close" data-modal-close id="reenrollment-process-close-x" aria-label="Cerrar" hidden>&times;</button>
+        </div>
+        <div id="reenrollment-process-loading" class="enrollment-process-state">
+            <div class="enrollment-spinner" aria-hidden="true"></div>
+            <h2 class="enrollment-process-title">Actualizando biométricos</h2>
+            <p class="enrollment-process-text">Guardando la nueva foto y regenerando el reconocimiento facial...</p>
+        </div>
+        <div id="reenrollment-process-success" class="enrollment-process-state hidden">
+            <div class="enrollment-success-icon" aria-hidden="true">✓</div>
+            <h2 class="enrollment-process-title">Foto actualizada</h2>
+            <p class="enrollment-process-text">Redirigiendo al perfil...</p>
+        </div>
+        <div id="reenrollment-process-error" class="enrollment-process-state hidden">
+            <div class="enrollment-error-icon" aria-hidden="true">✕</div>
+            <h2 class="enrollment-process-title">No se pudo completar</h2>
+            <p id="reenrollment-process-error-message" class="enrollment-process-text"></p>
+            <button type="button" class="btn btn-primary enrollment-process-close-btn" id="reenrollment-process-close-btn">
+                Volver
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/modal.js' %}?v=1.0"></script>
+<script src="{% static 'js/re_enrollment.js' %}?v=1.1"></script>
+{% endblock %}
