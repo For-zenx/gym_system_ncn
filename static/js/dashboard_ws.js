@@ -59,6 +59,8 @@ function connectDashboardWebSocket() {
                 window.dispatchEvent(new CustomEvent('enrollmentPhotoReceived', {
                     detail: { photoType: data.photoType, image: data.image },
                 }));
+            } else if (data.type === 'ENROLLMENT_TERMS_ACCEPTED') {
+                window.dispatchEvent(new CustomEvent('enrollmentTermsAccepted'));
             } else if (data.type === 'NEW_ACCESS_LOG') {
                 window.dispatchEvent(new CustomEvent('newAccessLog', { detail: data }));
             }

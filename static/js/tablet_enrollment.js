@@ -14,6 +14,8 @@ const faceGuide = document.getElementById('face-guide');
 const faceGuideOval = document.querySelector('.face-guide-oval');
 const hudInstruction = document.getElementById('hud-instruction');
 const hudText = document.getElementById('hud-text');
+const termsOverlay = document.getElementById('terms-overlay');
+const termsAcceptBtn = document.getElementById('terms-accept-btn');
 
 let socket = null;
 let reconnectTimer = null;
@@ -22,6 +24,7 @@ let canvasCtx = overlayCanvas.getContext('2d');
 let isModelsLoaded = false;
 let isCaptureActive = false;
 let captureCompleted = false;
+let termsAcceptedThisSession = false;
 let lastCaptureTime = 0;
 let detectionLoopRunning = false;
 let stableSince = null;
@@ -38,6 +41,50 @@ async function loadModels() {
 
 function resetStability() {
     stableSince = null;
+}
+
+function hideTermsScreen() {
+    if (termsOverlay) {
+        termsOverlay.classList.add('hidden');
+    }
+}
+
+function showTermsScreen() {
+    if (!termsOverlay) {
+        completeEnrollmentIdle();
+        return;
+    }
+    idleOverlay.classList.add('hidden');
+    termsOverlay.classList.remove('hidden');
+    setStatus('connected', 'Lea y acepte');
+}
+
+function completeEnrollmentIdle() {
+    hideTermsScreen();
+    idleOverlay.classList.remove('hidden');
+    const idleSubtitle = idleOverlay.querySelector('.idle-subtitle');
+    if (idleSubtitle) {
+        idleSubtitle.textContent = termsAcceptedThisSession
+            ? 'Foto y términos listos'
+            : 'Foto capturada';
+    }
+    setStatus('connected', termsAcceptedThisSession ? 'Listo' : 'Foto lista');
+}
+
+function acceptTermsOnTablet() {
+    if (termsAcceptedThisSession) {
+        return;
+    }
+    termsAcceptedThisSession = true;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'ENROLLMENT_TERMS_ACCEPTED' }));
+    }
+    completeEnrollmentIdle();
+}
+
+function skipTermsOnTablet() {
+    termsAcceptedThisSession = true;
+    completeEnrollmentIdle();
 }
 
 async function detectFaceLoop() {
@@ -84,9 +131,7 @@ async function detectFaceLoop() {
                         stopCamera();
                         faceGuide.classList.remove('active');
                         hudInstruction.classList.add('hidden');
-                        idleOverlay.classList.remove('hidden');
-                        idleOverlay.querySelector('.idle-subtitle').textContent = 'Foto capturada';
-                        setStatus('connected', 'Foto lista');
+                        showTermsScreen();
                     }, 1200);
                 } else {
                     hudText.textContent = 'Coloque su rostro en el óvalo';
@@ -159,6 +204,7 @@ function stopCamera() {
 }
 
 function showIdleScreen() {
+    hideTermsScreen();
     idleOverlay.classList.remove('hidden');
     const idleSubtitle = idleOverlay.querySelector('.idle-subtitle');
     if (idleSubtitle) {
@@ -168,6 +214,7 @@ function showIdleScreen() {
     hudInstruction.classList.add('hidden');
     isCaptureActive = false;
     captureCompleted = false;
+    termsAcceptedThisSession = false;
     detectionLoopRunning = false;
     resetStability();
 }
@@ -199,11 +246,13 @@ async function startEnrollmentSession() {
     if (cameraStream) {
         stopCamera();
     }
+    hideTermsScreen();
     idleOverlay.classList.add('hidden');
     faceGuide.classList.add('active');
     hudInstruction.classList.remove('hidden');
     hudText.textContent = 'Coloque su rostro en el óvalo';
     captureCompleted = false;
+    termsAcceptedThisSession = false;
     isCaptureActive = true;
     resetStability();
     setStatus('connected', 'Capturando');
@@ -233,6 +282,8 @@ function handleServerMessage(data) {
         startEnrollmentSession();
     } else if (data.type === 'ENROLLMENT_END') {
         stopEnrollmentSession();
+    } else if (data.type === 'ENROLLMENT_SKIP_TERMS') {
+        skipTermsOnTablet();
     }
 }
 
@@ -244,4 +295,7 @@ function setStatus(state, text) {
 document.addEventListener('DOMContentLoaded', function () {
     showIdleScreen();
     connectWebSocket();
+    if (termsAcceptBtn) {
+        termsAcceptBtn.addEventListener('click', acceptTermsOnTablet);
+    }
 });

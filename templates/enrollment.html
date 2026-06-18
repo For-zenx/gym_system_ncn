@@ -5,7 +5,7 @@
 {% block page_title %}Enrolamiento de Nuevo Afiliado{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=1.9">
+<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=2.0">
 {% endblock %}
 
 {% block content %}
@@ -40,6 +40,9 @@
         <button type="button" class="btn btn-secondary enrollment-retake-btn" onclick="retakeEnrollmentPhoto()">
             Tomar otra foto
         </button>
+        <div id="enrollment-terms-status" class="enrollment-terms-status enrollment-terms-status--pending" role="status">
+            Esperando foto del afiliado en la tablet
+        </div>
     </div>
 
     <div class="form-section">
@@ -56,6 +59,7 @@
         <form method="POST" action="{% url 'enrollment' %}" id="enrollment-form">
             {% csrf_token %}
             <input type="hidden" name="foto_frente_base64" id="input-foto-frente">
+            <input type="hidden" name="terms_accepted" id="input-terms-accepted" value="">
 
             <div class="form-group">
                 <label for="cedula_numero">Cédula / RIF</label>
@@ -134,6 +138,108 @@
 <script>
     const offlineOverlay = document.getElementById('tablet-offline-overlay');
     const ENROLLMENT_TABLET_ROLE = 'enrollment';
+    const TERMS_LOOKUP_URL = "{% url 'enrollment_terms_lookup' %}";
+    const termsStatusEl = document.getElementById('enrollment-terms-status');
+    const termsAcceptedInput = document.getElementById('input-terms-accepted');
+    const cedulaPrefixInput = document.getElementById('cedula_prefix');
+    const cedulaNumeroInput = document.getElementById('cedula_numero');
+    let enrollmentPhotoReady = false;
+    let enrollmentTermsMet = false;
+    let tabletTermsAcceptedThisSession = false;
+    let termsLookupTimer = null;
+
+    function setTermsStatus(state, message) {
+        if (!termsStatusEl) {
+            return;
+        }
+        termsStatusEl.className = 'enrollment-terms-status enrollment-terms-status--' + state;
+        termsStatusEl.textContent = message;
+    }
+
+    function syncTermsAcceptedInput() {
+        if (termsAcceptedInput) {
+            termsAcceptedInput.value = enrollmentTermsMet ? '1' : '';
+        }
+    }
+
+    function updateEnrollmentSaveState() {
+        const saveButton = document.getElementById('enrollment-form')
+            ? document.getElementById('enrollment-form').querySelector('.btn-enrollment-save')
+            : null;
+        const canSave = enrollmentPhotoReady && enrollmentTermsMet;
+        if (saveButton) {
+            saveButton.disabled = !canSave;
+        }
+        syncTermsAcceptedInput();
+    }
+
+    function resetEnrollmentTermsState() {
+        enrollmentTermsMet = false;
+        tabletTermsAcceptedThisSession = false;
+        if (enrollmentPhotoReady) {
+            setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
+        } else {
+            setTermsStatus('pending', 'Esperando foto del afiliado en la tablet');
+        }
+        updateEnrollmentSaveState();
+    }
+
+    function applyTermsStatusAfterLookup(termsAlreadyStored) {
+        if (termsAlreadyStored) {
+            enrollmentTermsMet = true;
+            setTermsStatus('stored', 'Términos ya registrados para este afiliado');
+            return;
+        }
+        if (tabletTermsAcceptedThisSession) {
+            enrollmentTermsMet = true;
+            setTermsStatus('accepted', 'Términos aceptados en la tablet');
+            return;
+        }
+        if (enrollmentPhotoReady) {
+            enrollmentTermsMet = false;
+            setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
+        }
+    }
+
+    function lookupEnrollmentTerms() {
+        if (!cedulaPrefixInput || !cedulaNumeroInput) {
+            return;
+        }
+        const numero = (cedulaNumeroInput.value || '').trim();
+        if (numero.length < 6) {
+            if (enrollmentPhotoReady && !tabletTermsAcceptedThisSession) {
+                enrollmentTermsMet = false;
+                setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
+                updateEnrollmentSaveState();
+            }
+            return;
+        }
+        const params = new URLSearchParams({
+            cedula_prefix: cedulaPrefixInput.value || 'V-',
+            cedula_numero: numero,
+        });
+        fetch(TERMS_LOOKUP_URL + '?' + params.toString(), { credentials: 'same-origin' })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data.terms_already_accepted) {
+                    window.sendDashboardCommand({ type: 'ENROLLMENT_SKIP_TERMS' });
+                }
+                applyTermsStatusAfterLookup(!!data.terms_already_accepted);
+                updateEnrollmentSaveState();
+            })
+            .catch(function () {
+                if (enrollmentPhotoReady && !tabletTermsAcceptedThisSession) {
+                    enrollmentTermsMet = false;
+                    setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
+                    updateEnrollmentSaveState();
+                }
+            });
+    }
+
+    function scheduleTermsLookup() {
+        clearTimeout(termsLookupTimer);
+        termsLookupTimer = setTimeout(lookupEnrollmentTerms, 350);
+    }
 
     function clearEnrollmentPhoto() {
         const img = document.getElementById('img-frente');
@@ -147,6 +253,9 @@
             img.previousElementSibling.style.display = 'block';
         }
         input.value = '';
+        enrollmentPhotoReady = false;
+        resetEnrollmentTermsState();
+        updateEnrollmentSaveState();
     }
 
     window.addEventListener('tabletStatusChanged', function (e) {
@@ -175,6 +284,19 @@
         imgElement.style.display = 'block';
         imgElement.previousElementSibling.style.display = 'none';
         inputElement.value = image;
+        enrollmentPhotoReady = true;
+        enrollmentTermsMet = false;
+        tabletTermsAcceptedThisSession = false;
+        setTermsStatus('pending', 'Esperando aceptación de términos en la tablet');
+        updateEnrollmentSaveState();
+        scheduleTermsLookup();
+    });
+
+    window.addEventListener('enrollmentTermsAccepted', function () {
+        tabletTermsAcceptedThisSession = true;
+        enrollmentTermsMet = true;
+        setTermsStatus('accepted', 'Términos aceptados en la tablet');
+        updateEnrollmentSaveState();
     });
 
     function reconnectTablet() {
@@ -186,7 +308,16 @@
         reconnectTablet();
     }
 
+    if (cedulaPrefixInput) {
+        cedulaPrefixInput.addEventListener('change', scheduleTermsLookup);
+    }
+    if (cedulaNumeroInput) {
+        cedulaNumeroInput.addEventListener('input', scheduleTermsLookup);
+        cedulaNumeroInput.addEventListener('blur', scheduleTermsLookup);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
+        updateEnrollmentSaveState();
         setTimeout(function () {
             window.sendDashboardCommand({ type: 'ENROLLMENT_START' });
         }, 500);
@@ -201,7 +332,7 @@
             window.sendDashboardCommand({ type: 'ENROLLMENT_START' });
             if (wasHidden) {
                 clearEnrollmentPhoto();
-                alert('Has vuelto a la pestaña de enrolamiento.\n\nLa cámara de la tablet se reiniciará. Si no se capturó la foto, deberás tomarla nuevamente. Los datos de texto están a salvo.');
+                alert('Has vuelto a la pestaña de enrolamiento.\n\nLa cámara de la tablet se reiniciará. Debe tomarse la foto y aceptar los términos nuevamente. Los datos de texto están a salvo.');
                 wasHidden = false;
             }
         }
@@ -266,6 +397,16 @@
     if (enrollmentForm) {
         enrollmentForm.addEventListener('submit', function (event) {
             event.preventDefault();
+            if (!enrollmentPhotoReady) {
+                processErrorMessage.textContent = 'Debe capturar la foto del afiliado en la tablet.';
+                openProcessModal('error');
+                return;
+            }
+            if (!enrollmentTermsMet) {
+                processErrorMessage.textContent = 'El afiliado debe aceptar los términos y condiciones en la tablet.';
+                openProcessModal('error');
+                return;
+            }
             if (saveButton) {
                 saveButton.disabled = true;
             }

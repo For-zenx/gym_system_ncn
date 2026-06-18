@@ -156,6 +156,11 @@ class EnrollmentTabletConsumer(AsyncWebsocketConsumer):
                     "image": payload.get("image"),
                 },
             )
+        elif payload.get("type") == "ENROLLMENT_TERMS_ACCEPTED":
+            await self.channel_layer.group_send(
+                DASHBOARD_GROUP,
+                {"type": "enrollment_terms_forward"},
+            )
         else:
             message_type = payload.get("type")
             logger.warning("Tipo de mensaje desconocido en tablet de enrolamiento: %s", message_type)
@@ -196,7 +201,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
             return
 
         msg_type = payload.get("type")
-        if msg_type in ("ENROLLMENT_START", "ENROLLMENT_END"):
+        if msg_type in ("ENROLLMENT_START", "ENROLLMENT_END", "ENROLLMENT_SKIP_TERMS"):
             await self.channel_layer.group_send(
                 TABLET_ENROLLMENT_GROUP,
                 {"type": "enrollment_command", "data": payload},
@@ -214,6 +219,11 @@ class DashboardConsumer(AsyncWebsocketConsumer):
             "type": "ENROLLMENT_PHOTO",
             "photoType": event.get("photoType"),
             "image": event.get("image"),
+        }))
+
+    async def enrollment_terms_forward(self, event):
+        await self.send(json.dumps({
+            "type": "ENROLLMENT_TERMS_ACCEPTED",
         }))
 
     async def new_access_log(self, event):

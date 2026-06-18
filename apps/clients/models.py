@@ -23,6 +23,11 @@ class Client(models.Model):
         blank=True,
         help_text="Día del mes para renovación de plan fijo (1-31). Se asigna en el primer pago fijo.",
     )
+    terms_accepted_at = models.DateTimeField(
+        "Términos aceptados el",
+        null=True,
+        blank=True,
+    )
 
     # foto_frente alimenta el motor de reconocimiento y la UI; perfiles legacy sin uso activo.
     foto_frente = models.ImageField(upload_to='clients/enrollment/', blank=True, null=True)

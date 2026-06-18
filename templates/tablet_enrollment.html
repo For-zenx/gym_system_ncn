@@ -7,7 +7,7 @@
     <title>Perfect Line II — Enrolamiento</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/tablet.css' %}?v=1.8">
+    <link rel="stylesheet" href="{% static 'css/tablet.css' %}?v=1.9">
 </head>
 <body>
 
@@ -37,11 +37,24 @@
         <span id="hud-text">Cargando...</span>
     </div>
 
+    <div id="terms-overlay" class="enrollment-terms-overlay hidden">
+        <div class="enrollment-terms-card">
+            <h2 class="enrollment-terms-title">Términos y condiciones</h2>
+            <div class="enrollment-terms-body">
+                <p>Los términos y condiciones del gimnasio se publicarán aquí.</p>
+                <p>Lea el documento con calma antes de continuar con su enrolamiento.</p>
+            </div>
+            <button type="button" id="terms-accept-btn" class="enrollment-terms-accept-btn">
+                Acepto los términos y condiciones
+            </button>
+        </div>
+    </div>
+
     <script>
         window.TABLET_WS_URL = "{{ ws_url }}";
     </script>
     <script src="{% static 'vendor/face-api.min.js' %}"></script>
     <script src="{% static 'js/tablet_face_utils.js' %}?v=1.0"></script>
-    <script src="{% static 'js/tablet_enrollment.js' %}?v=1.6"></script>
+    <script src="{% static 'js/tablet_enrollment.js' %}?v=1.7"></script>
 </body>
 </html>

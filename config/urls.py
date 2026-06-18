@@ -31,6 +31,7 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('', core_views.dashboard, name='dashboard'),
     path('enrolamiento/', core_views.enrollment, name='enrollment'),
+    path('enrolamiento/terminos/', core_views.enrollment_terms_lookup, name='enrollment_terms_lookup'),
     path('enrolamiento/facturacion/<str:codigo_afiliado>/', core_views.enrollment_billing, name='enrollment_billing'),
     path('tablet/acceso/', access_views.tablet_access_view, name='tablet_access'),
     path('tablet/enrolamiento/', access_views.tablet_enrollment_view, name='tablet_enrollment'),

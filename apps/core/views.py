@@ -3,11 +3,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
 from django.http import JsonResponse
+from django.utils import timezone
 import base64
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from apps.clients.models import Client
-from apps.clients.validation import validate_client_data, client_form_context, apply_client_fields
+from apps.clients.validation import validate_client_data, client_form_context, apply_client_fields, build_cedula
 from apps.access.models import AccessLog
 from apps.access import ai_engine
 from apps.users.decorators import permission_required
@@ -35,6 +36,18 @@ def _enrollment_error_response(request, message, post_data=None, status=400):
         return JsonResponse({'status': 'error', 'message': message}, status=status)
     messages.error(request, message)
     return render(request, 'enrollment.html', client_form_context(post_data=post_data or request.POST))
+
+@login_required
+@permission_required("clients.enroll")
+def enrollment_terms_lookup(request):
+    cedula = build_cedula(
+        request.GET.get("cedula_prefix"),
+        request.GET.get("cedula_numero"),
+    )
+    client = Client.objects.filter(cedula=cedula).first()
+    return JsonResponse({
+        "terms_already_accepted": bool(client and client.terms_accepted_at),
+    })
 
 @login_required
 @permission_required("dashboard.view")
@@ -72,6 +85,15 @@ def enrollment(request):
             return _enrollment_error_response(
                 request,
                 "Debe capturar la foto del afiliado en la tablet de enrolamiento.",
+                post_data=request.POST,
+            )
+
+        client_existing = Client.objects.filter(cedula=cedula).first()
+        needs_terms = client_existing is None or client_existing.terms_accepted_at is None
+        if needs_terms and request.POST.get("terms_accepted") != "1":
+            return _enrollment_error_response(
+                request,
+                "El afiliado debe aceptar los términos y condiciones en la tablet.",
                 post_data=request.POST,
             )
 
@@ -113,6 +135,9 @@ def enrollment(request):
             frente_file = save_b64_image(foto_frente_b64, f"{codigo_final}_frente")
             if frente_file:
                 client.foto_frente = frente_file
+
+            if client.terms_accepted_at is None:
+                client.terms_accepted_at = timezone.now()
 
             client.save()
 
