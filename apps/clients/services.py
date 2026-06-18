@@ -18,6 +18,8 @@ def _delete_client_image_files(client):
 def delete_client(client):
     codigo_afiliado = client.codigo_afiliado
     _delete_client_image_files(client)
+    # Periodos de servicio referencian Membership con PROTECT; deben ir antes del cascade del afiliado.
+    client.service_periods.all().delete()
     client.delete()
     return codigo_afiliado
 

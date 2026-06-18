@@ -1,8 +1,8 @@
 // tablet_face_utils.js — Detección facial compartida (tablets acceso y enrolamiento)
 
 const TabletFaceUtils = (function () {
-    const MIN_DETECTION_SCORE = 0.75;
-    const STABILITY_MS = 350;
+    const MIN_DETECTION_SCORE = 0.60;
+    const STABILITY_MS = 200;
     const OVAL_MIN_FACE_WIDTH_RATIO = 0.32;
     const OVAL_MAX_FACE_WIDTH_RATIO = 0.98;
 
@@ -102,7 +102,7 @@ const TabletFaceUtils = (function () {
         if (detection.score < MIN_DETECTION_SCORE) {
             return false;
         }
-        if (!faceFitsInOval(resizedDetection.box, videoEl, ovalEl)) {
+        if (!faceCenterInOval(resizedDetection.box, videoEl, ovalEl)) {
             return false;
         }
 
@@ -121,7 +121,7 @@ const TabletFaceUtils = (function () {
     }
 
     function detectorOptions() {
-        return new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
+        return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
     }
 
     const ACCESS_MIN_SCORE = 0.55;
