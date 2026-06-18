@@ -1,9 +1,13 @@
 import pytest
 from django.urls import reverse
+from unittest.mock import MagicMock
 
 from apps.clients.models import Client
 from apps.clients.validation import split_cedula
+from tests.core.conftest import FAKE_PHOTO_B64
 from tests.helpers import ACCESS_PARAMS, assert_access, login_if_needed
+
+REENROLL_JSON_HEADER = {"HTTP_X_REENROLL_SUBMIT": "1"}
 
 
 def _edit_post_data(affiliate):
@@ -123,6 +127,67 @@ def test_client_delete__access(
     )
     if is_logged_in and "clients.delete" in permissions:
         assert Client.objects.filter(pk=affiliate.pk).exists()
+
+
+@pytest.mark.parametrize(
+    ("is_logged_in", "permissions"),
+    ACCESS_PARAMS + [(True, ["clients.edit"])],
+)
+@pytest.mark.django_db
+def test_re_enroll__access(
+    client,
+    create_staff_user,
+    create_client,
+    get_login_url,
+    is_logged_in,
+    permissions,
+):
+    affiliate = create_client()
+    login_if_needed(client, create_staff_user, is_logged_in, permissions)
+
+    url = reverse("clients:re_enroll", kwargs={"codigo_afiliado": affiliate.codigo_afiliado})
+    response = client.get(url)
+    assert_access(response, is_logged_in, permissions, "clients.edit", url, get_login_url)
+
+
+@pytest.mark.django_db
+def test_re_enroll__post_missing_photo(client, create_staff_user, create_client):
+    affiliate = create_client()
+    staff = create_staff_user(permissions=["clients.edit"])
+    client.force_login(staff)
+
+    url = reverse("clients:re_enroll", kwargs={"codigo_afiliado": affiliate.codigo_afiliado})
+    response = client.post(url, {}, **REENROLL_JSON_HEADER)
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["status"] == "error"
+    assert "foto" in payload["message"].lower()
+
+
+@pytest.mark.django_db
+def test_re_enroll__post_success_json(client, create_staff_user, create_client, monkeypatch):
+    mock_replace_photo = MagicMock(side_effect=lambda affiliate, _photo: affiliate)
+    monkeypatch.setattr("apps.clients.views.replace_client_front_photo", mock_replace_photo)
+    affiliate = create_client()
+    staff = create_staff_user(permissions=["clients.edit"])
+    client.force_login(staff)
+
+    url = reverse("clients:re_enroll", kwargs={"codigo_afiliado": affiliate.codigo_afiliado})
+    response = client.post(
+        url,
+        {"foto_frente_base64": FAKE_PHOTO_B64},
+        **REENROLL_JSON_HEADER,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "success"
+    assert payload["redirect_url"] == reverse(
+        "clients:profile",
+        kwargs={"codigo_afiliado": affiliate.codigo_afiliado},
+    )
+    mock_replace_photo.assert_called_once()
 
 
 @pytest.mark.django_db
