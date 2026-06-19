@@ -1,11 +1,11 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Perfect Line II{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=3.0">
+    <title>{% block title %}NCN Gym{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=3.1">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -15,11 +15,11 @@
         <aside class="sidebar">
             {% if 'dashboard.view' in user_permissions %}
             <a href="{% url 'dashboard' %}" class="sidebar-brand sidebar-brand-link">
-                <h2>Perfect <span>Line II</span></h2>
+                <h2>NCN <span>Gym</span></h2>
             </a>
             {% else %}
             <div class="sidebar-brand">
-                <h2>Perfect <span>Line II</span></h2>
+                <h2>NCN <span>Gym</span></h2>
             </div>
             {% endif %}
             <nav class="sidebar-nav">

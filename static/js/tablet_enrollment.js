@@ -1,4 +1,4 @@
-// tablet_enrollment.js — Tablet de enrolamiento (Perfect Line II)
+﻿// tablet_enrollment.js — Tablet de enrolamiento (NCN Gym)
 
 const WS_URL = window.TABLET_WS_URL;
 const RECONNECT_DELAY_MS = 3000;

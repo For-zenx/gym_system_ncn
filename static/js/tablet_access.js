@@ -1,4 +1,4 @@
-// tablet_access.js — Tablet de acceso biométrico (Perfect Line II)
+﻿// tablet_access.js — Tablet de acceso biométrico (NCN Gym)
 
 const WS_URL = window.TABLET_WS_URL;
 const RECONNECT_DELAY_MS = 3000;

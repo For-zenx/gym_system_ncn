@@ -1,4 +1,4 @@
-.stats-page {
+﻿.stats-page {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
@@ -57,7 +57,7 @@
 .stats-period-btn.is-active {
     background: rgba(16, 185, 129, 0.12);
     border-color: rgba(16, 185, 129, 0.45);
-    color: #10b981;
+    color: #2563eb;
 }
 
 .stats-kpi-row {

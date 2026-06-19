@@ -1,4 +1,4 @@
-/* tablet.css — Hoja de estilos exclusiva de la interfaz de la tablet */
+﻿/* tablet.css — Hoja de estilos exclusiva de la interfaz de la tablet */
 
 *, *::before, *::after {
     box-sizing: border-box;
@@ -59,7 +59,7 @@ html, body {
 }
 
 #overlay-brand span {
-    color: #10b981; /* Emerald — coherente con la marca */
+    color: #2563eb; /* Emerald — coherente con la marca */
 }
 
 /* Indicador de estado WebSocket: esquina superior derecha */
@@ -83,7 +83,7 @@ html, body {
 }
 
 #status-dot.connected {
-    background-color: #10b981; /* Emerald: conectado */
+    background-color: #2563eb; /* Emerald: conectado */
 }
 
 #status-dot.disconnected {
@@ -392,7 +392,7 @@ html, body {
 }
 
 .idle-brand span {
-    color: #10b981;
+    color: #2563eb;
 }
 
 .idle-title {
@@ -466,7 +466,7 @@ html, body {
     padding: 1rem 1.25rem;
     border: none;
     border-radius: 0.65rem;
-    background: #10b981;
+    background: #2563eb;
     color: #fff;
     font-size: 1.05rem;
     font-weight: 700;

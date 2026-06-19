@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     const config = window.ENTRY_HOURS_STATS || {};
     const dataScript = document.getElementById('entry-hours-stats-data');
     const canvas = document.getElementById('entry-hours-chart');
@@ -120,7 +120,7 @@
             label: 'Entradas',
             data: stats.counts,
             backgroundColor: 'rgba(16, 185, 129, 0.75)',
-            borderColor: '#10b981',
+            borderColor: '#2563eb',
             borderWidth: 1,
             borderRadius: 4,
         };

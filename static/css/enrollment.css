@@ -1,4 +1,4 @@
-.enrollment-container {
+﻿.enrollment-container {
     display: flex;
     flex-direction: column;
     gap: 2rem;
@@ -68,7 +68,7 @@
 .enrollment-terms-status--stored {
     background: rgba(16, 185, 129, 0.12);
     border: 1px solid rgba(16, 185, 129, 0.45);
-    color: #10b981;
+    color: #2563eb;
 }
 
 .btn-enrollment-save:disabled {
@@ -493,8 +493,8 @@
 }
 
 .re-enrollment-flash--success {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: #10b981;
+    background-color: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
     border: 1px solid currentColor;
 }
 

@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import hashlib
 import json
 import sys
@@ -31,7 +31,7 @@ def generar_licencia(machine_id, nombre, expires_on, output_path="license.dat"):
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser(description="Generador de licencias Perfect Line II")
+    parser = argparse.ArgumentParser(description="Generador de licencias NCN Gym")
     parser.add_argument("machine_id", nargs="?", help="Machine ID de la PC del gym")
     parser.add_argument("nombre", nargs="?", help="Nombre del gimnasio")
     parser.add_argument("output_path", nargs="?", default="license.dat", help="Ruta de salida")
@@ -41,7 +41,7 @@ def _parse_args():
 
 
 if __name__ == "__main__":
-    print("--- Generador de Licencias Perfect Line ---")
+    print("--- Generador de Licencias NCN Gym ---")
     args = _parse_args()
 
     machine_id = args.machine_id or input("Introduce el Machine ID de la computadora: ").strip()

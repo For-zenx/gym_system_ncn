@@ -1,4 +1,4 @@
-.charge-checkout-page {
+﻿.charge-checkout-page {
     max-width: 960px;
     margin: 0 auto;
     width: 100%;
@@ -765,7 +765,7 @@
 }
 
 .checkout-confirm-total-row--grand strong {
-    color: #10b981;
+    color: #2563eb;
 }
 
 .checkout-confirm-actions {

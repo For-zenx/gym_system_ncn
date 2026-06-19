@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime, time, timedelta
 from decimal import Decimal
@@ -113,7 +113,7 @@ def build_report_context(period_days: int) -> dict:
         fecha_ingreso__lte=end_date,
     ).count()
 
-    gym_name = getattr(settings, "GYM_NAME", "Perfect Line II")
+    gym_name = getattr(settings, "GYM_NAME", "NCN Gym")
     period_label = f"Últimos {period_days} día{'s' if period_days != 1 else ''}"
     date_range = (
         f"{start_date.strftime('%d/%m/%Y')} — {end_date.strftime('%d/%m/%Y')}"
