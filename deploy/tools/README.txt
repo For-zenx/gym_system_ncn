@@ -15,7 +15,7 @@ PRIMERA VEZ EN ESTE PC (solo soporte / instalador)
 ------------------------------------------------
 1. Ejecutar como Administrador: tools\instalar_o_reinstalar.bat
 2. Colocar license.dat en: config\license.dat
-   (la licencia la genera soporte; no viene en el instalador)
+   (la licencia la genera soporte con --years 1 o --expires; no viene en el instalador)
 3. Revisar config\.env si hace falta (ej. puerto del torniquete)
 4. Crear usuario admin: tools\crear_superusuario.bat
 5. Abrir el Manager e iniciar el servidor

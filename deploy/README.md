@@ -38,7 +38,9 @@ Salida: `deploy\dist\PerfectLine_1.0.2.zip`
    ```powershell
    cd gym_system
    .\venv\Scripts\Activate.ps1
-   python generador_licencias.py <MACHINE_ID> "Nombre del Gym"
+   python generador_licencias.py <MACHINE_ID> "Nombre del Gym" --years 1
+   # o fecha fija:
+   python generador_licencias.py <MACHINE_ID> "Nombre del Gym" --expires 2027-06-18
    ```
 
 5. Copiar `license.dat` generado → `C:\PerfectLine\PerfectLine_1.0.2\config\license.dat`
@@ -74,8 +76,13 @@ Salida: `deploy\dist\PerfectLine_1.0.2.zip`
 ## Licencia — cómo encaja
 
 - El release es **genérico** (mismo ZIP para todos).
-- `license.dat` se genera **después**, por cada PC, con su Machine ID.
-- Al arrancar, el programa lee `config\license.dat`, compara el ID del archivo con el hardware real y valida la firma.
+- `license.dat` se genera **después**, por cada PC, con su Machine ID y fecha de vencimiento (`expires_on`).
+- Al arrancar, el programa valida firma + Machine ID.
+- **Con internet:** si la fecha de red confirma vencimiento → bloqueo y `ExpiryLock` en registro (`HKLM\Software\PerfectLine`). El bloqueo persiste aunque desconecten la red.
+- **Sin internet:** no se evalúa vencimiento por fecha (el gym sigue operando si la firma es válida), salvo que ya exista `ExpiryLock`.
+- **Renovación:** soporte entrega un `license.dat` nuevo con `expires_on` futuro; al validar se limpia `ExpiryLock` automáticamente.
+- En producción, `LICENSE_REQUIRED=False` en `.env` **no desactiva** la licencia (solo aplica en desarrollo local).
+- El Manager avisa si faltan ≤14 días (solo con internet); no bloquea hasta vencimiento confirmado online o `ExpiryLock`.
 
 ---
 
@@ -93,4 +100,4 @@ Salida: `deploy\dist\PerfectLine_1.0.2.zip`
 ## Desarrollo local (recordatorio)
 
 - `python manage.py runserver` → sin licencia (`LICENSE_REQUIRED=False` en `.env`)
-- Producción en gym → Manager usa `settings_production` → licencia obligatoria
+- Producción en gym → Manager usa `settings_production` → licencia **siempre** obligatoria (`.env` no la desactiva)

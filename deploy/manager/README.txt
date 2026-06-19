@@ -29,3 +29,5 @@ NOTAS
 - Si cierras el Manager, el servidor puede apagarse.
 - La primera instalacion la hace soporte (tools\instalar_o_reinstalar.bat).
 - Si aparece error de licencia, contactar a soporte.
+- Con internet y licencia por vencer (14 dias), el Manager muestra un aviso informativo.
+- Si la licencia vencio (confirmado online), el sistema queda bloqueado hasta recibir license.dat nuevo.

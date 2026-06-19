@@ -3,6 +3,7 @@ import os
 import json
 import socket
 import subprocess
+import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox
@@ -35,8 +36,10 @@ class ManagerApp:
         self.server_log = None
         self.start_button: tk.Button
         self.stop_button: tk.Button
+        self._license_blocked = False
 
         self._build_ui()
+        self._apply_license_status(show_warning=True)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self._refresh_status_loop()
 
@@ -55,6 +58,51 @@ class ManagerApp:
                 self.root.iconbitmap(str(icon_path))
             except tk.TclError:
                 pass
+
+    def _prepare_license_env(self) -> None:
+        os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings_production"
+        os.environ["PERFECTLINE_ROOT"] = str(self.base_dir)
+        app_path = str(self.app_dir)
+        if app_path not in sys.path:
+            sys.path.insert(0, app_path)
+
+    def _get_license_status(self) -> dict:
+        self._prepare_license_env()
+        from config.licencia import get_license_status
+
+        return get_license_status()
+
+    def _apply_license_status(self, show_warning: bool = False) -> None:
+        try:
+            status = self._get_license_status()
+        except Exception as exc:
+            self._license_blocked = True
+            messagebox.showerror(
+                "PerfectLine",
+                f"No se pudo validar la licencia:\n{exc}",
+            )
+            self._refresh_status_loop()
+            return
+
+        from config.licencia import (
+            STATUS_EXPIRED,
+            STATUS_EXPIRY_LOCKED,
+            STATUS_INVALID,
+        )
+
+        self._license_blocked = status["status"] in (
+            STATUS_EXPIRED,
+            STATUS_EXPIRY_LOCKED,
+            STATUS_INVALID,
+        )
+
+        if show_warning and status.get("warning") and status.get("message"):
+            messagebox.showwarning("PerfectLine", status["message"])
+
+        if self._license_blocked and status.get("message"):
+            messagebox.showerror("PerfectLine", status["message"])
+
+        self._refresh_status_loop()
 
     def _build_ui(self) -> None:
         frame = tk.Frame(self.root, padx=16, pady=14)
@@ -117,7 +165,8 @@ class ManagerApp:
 
     def _set_button_state(self, port_ok: bool) -> None:
         running = self._owned_process_running() or port_ok
-        self.start_button.config(state=("disabled" if running else "normal"))
+        start_state = "disabled" if (running or self._license_blocked) else "normal"
+        self.start_button.config(state=start_state)
         self.stop_button.config(state=("normal" if running else "disabled"))
 
     def _refresh_status_loop(self) -> None:
@@ -138,6 +187,20 @@ class ManagerApp:
         self.root.after(2500, self._refresh_status_loop)
 
     def start_service(self) -> None:
+        status = self._get_license_status()
+        from config.licencia import (
+            STATUS_EXPIRED,
+            STATUS_EXPIRY_LOCKED,
+            STATUS_INVALID,
+        )
+
+        if status["status"] in (STATUS_EXPIRED, STATUS_EXPIRY_LOCKED, STATUS_INVALID):
+            messagebox.showerror(
+                "PerfectLine",
+                status.get("message") or "Licencia no valida.",
+            )
+            self._apply_license_status(show_warning=False)
+            return
         if self._server_listening():
             messagebox.showinfo("PerfectLine", "El puerto 8000 ya esta activo.")
             self._refresh_status_loop()
