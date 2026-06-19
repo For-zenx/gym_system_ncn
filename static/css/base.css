@@ -5,6 +5,7 @@
     /* Color Palette - Dark Mode */
     --bg-main: #020617; /* Slate 950 */
     --bg-surface: #0f172a; /* Slate 900 */
+    --bg-card: #1e293b; /* Slate 800 */
     --text-main: #f8fafc; /* Slate 50 */
     --text-muted: #94a3b8; /* Slate 400 */
     --border-color: #1e293b; /* Slate 800 */
@@ -146,6 +147,20 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--primary);
 }
 
+a.sidebar-brand-link {
+    text-decoration: none;
+    color: inherit;
+    transition: opacity 0.2s ease;
+}
+
+a.sidebar-brand-link:hover {
+    opacity: 0.9;
+}
+
+a.sidebar-brand-link:hover span {
+    color: var(--primary-hover);
+}
+
 .sidebar-nav {
     flex: 1;
     padding: 1.5rem 1rem;
@@ -191,7 +206,8 @@ h1, h2, h3, h4, h5, h6 {
     align-items: center;
     justify-content: space-between;
     padding: 0 2rem;
-    z-index: 10;
+    position: relative;
+    z-index: 100;
 }
 
 .navbar-title h3 {
@@ -284,45 +300,117 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Indicador de estado de las tablets en la Navbar */
-.tablet-status-group {
+.tablet-status-widget {
+    position: relative;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+    gap: 0.25rem;
 }
 
-.tablet-status-pill {
+.tablet-status-trigger {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    background-color: var(--bg-card);
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
     border: 1px solid var(--border-color);
-    padding: 0.35rem 0.75rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
+    border-radius: 0.5rem;
+    background-color: var(--bg-card);
     color: var(--text-muted);
-    transition: all 0.3s ease;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
 }
 
-.tablet-status-dot {
+.tablet-status-trigger:hover,
+.tablet-status-trigger[aria-expanded="true"] {
+    border-color: rgba(16, 185, 129, 0.35);
+    color: var(--text-main);
+    background-color: rgba(16, 185, 129, 0.08);
+}
+
+.tablet-status-trigger svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.tablet-status-dots {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.tablet-status-dot-indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: #ef4444;
+    box-shadow: 0 0 0 rgba(239, 68, 68, 0.4);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tablet-status-dot-indicator.online {
+    background-color: #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.tablet-status-popover {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    min-width: 220px;
+    padding: 0.75rem;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-lg);
+    z-index: 150;
+}
+
+.tablet-status-popover-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 0.25rem;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+}
+
+.tablet-status-popover-row + .tablet-status-popover-row {
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.25rem;
+    padding-top: 0.75rem;
+}
+
+.tablet-status-popover-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background-color: #ef4444; /* Rojo por defecto (offline) */
+    flex-shrink: 0;
+    background-color: #ef4444;
     transition: background-color 0.3s ease;
-    box-shadow: 0 0 0 rgba(239, 68, 68, 0.4);
 }
 
-.tablet-status-pill.online {
+.tablet-status-popover-row.online {
     color: #10b981;
-    border-color: rgba(16, 185, 129, 0.3);
-    background-color: rgba(16, 185, 129, 0.05);
 }
 
-.tablet-status-pill.online .tablet-status-dot {
+.tablet-status-popover-row.online .tablet-status-popover-dot {
     background-color: #10b981;
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.tablet-status-popover-label {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.tablet-status-popover-text {
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 /* --- Data Tables Reusable Component --- */

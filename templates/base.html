@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Perfect Line II{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.8">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=3.0">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -13,9 +13,15 @@
         <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
         <aside class="sidebar">
+            {% if 'dashboard.view' in user_permissions %}
+            <a href="{% url 'dashboard' %}" class="sidebar-brand sidebar-brand-link">
+                <h2>Perfect <span>Line II</span></h2>
+            </a>
+            {% else %}
             <div class="sidebar-brand">
                 <h2>Perfect <span>Line II</span></h2>
             </div>
+            {% endif %}
             <nav class="sidebar-nav">
                 {% if 'dashboard.view' in user_permissions %}
                 <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Inicio</a>
@@ -90,14 +96,34 @@
                     </div>
                     {% endif %}
 
-                    <div class="tablet-status-group">
-                        <div id="pc-tablet-access-status" class="tablet-status-pill" data-role="access">
-                            <div class="tablet-status-dot"></div>
-                            <span class="status-text">Acceso Offline</span>
+                    <div class="tablet-status-widget" id="tabletStatusWidget">
+                        <button
+                            type="button"
+                            class="tablet-status-trigger"
+                            id="tabletStatusTrigger"
+                            aria-expanded="false"
+                            aria-controls="tabletStatusPopover"
+                            title="Estado de tablets"
+                        >
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                        </button>
+                        <div class="tablet-status-dots" aria-hidden="true">
+                            <span class="tablet-status-dot-indicator" data-role="access"></span>
+                            <span class="tablet-status-dot-indicator" data-role="enrollment"></span>
                         </div>
-                        <div id="pc-tablet-enrollment-status" class="tablet-status-pill" data-role="enrollment">
-                            <div class="tablet-status-dot"></div>
-                            <span class="status-text">Enrol. Offline</span>
+                        <div class="tablet-status-popover" id="tabletStatusPopover" hidden>
+                            <div class="tablet-status-popover-row" data-role="access">
+                                <span class="tablet-status-popover-dot"></span>
+                                <span class="tablet-status-popover-label">Tablet de acceso</span>
+                                <span class="tablet-status-popover-text status-text">Offline</span>
+                            </div>
+                            <div class="tablet-status-popover-row" data-role="enrollment">
+                                <span class="tablet-status-popover-dot"></span>
+                                <span class="tablet-status-popover-label">Tablet de enrolamiento</span>
+                                <span class="tablet-status-popover-text status-text">Offline</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -155,7 +181,7 @@
         }
     </script>
     <script src="{% static 'js/modal.js' %}?v=1.0"></script>
-    <script src="{% static 'js/dashboard_ws.js' %}?v=1.8"></script>
+    <script src="{% static 'js/dashboard_ws.js' %}?v=1.9"></script>
 
     {% block extra_js %}{% endblock %}
 

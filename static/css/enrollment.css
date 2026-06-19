@@ -7,10 +7,16 @@
 }
 
 .form-section, .camera-section {
-    background-color: var(--bg-card);
+    background-color: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 2rem;
+}
+
+.enrollment-section-title {
+    margin: 0 0 1.5rem;
+    font-weight: 600;
+    color: var(--text-main);
 }
 
 .camera-section {
@@ -100,39 +106,41 @@
     display: block;
     margin-bottom: 0.5rem;
     color: var(--text-muted);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
 }
 
 .form-group input {
     width: 100%;
     box-sizing: border-box;
-    padding: 0.75rem 1rem;
-    background-color: #0f172a;
+    padding: 0.85rem 1rem;
+    background-color: #020617;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: #fff;
+    color: var(--text-main);
     font-size: 1rem;
+    transition: border-color 0.2s ease;
 }
 
 .form-group input:focus {
     outline: none;
-    border-color: #10b981;
+    border-color: var(--primary);
 }
 
 .form-group select {
     width: 100%;
     box-sizing: border-box;
-    padding: 0.75rem 1rem;
-    background-color: #0f172a;
+    padding: 0.85rem 1rem;
+    background-color: #020617;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: #fff;
+    color: var(--text-main);
     font-size: 1rem;
+    transition: border-color 0.2s ease;
 }
 
 .form-group select:focus {
     outline: none;
-    border-color: #10b981;
+    border-color: var(--primary);
 }
 
 .cedula-input-group {
@@ -176,16 +184,30 @@
 
 .btn-outline-light {
     flex: 1;
-    background-color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    background-color: var(--bg-surface);
     color: var(--text-main);
     border: 1px solid var(--border-color);
     text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .btn-outline-light:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--border-color);
     border-color: var(--text-muted);
-    color: #fff;
+    color: var(--text-main);
+}
+
+.btn-outline-light:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 @media (max-width: 640px) {
@@ -222,7 +244,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    z-index: 10;
+    z-index: 6;
     text-align: center;
     padding: 2rem;
     opacity: 1;
@@ -380,8 +402,12 @@
 }
 
 .re-enrollment-section-title {
-    margin-bottom: 1.25rem;
-    color: #f59e0b;
+    margin: 0 0 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-main);
 }
 
 .re-enrollment-meta {

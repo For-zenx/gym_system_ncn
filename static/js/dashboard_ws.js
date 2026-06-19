@@ -8,27 +8,73 @@ const TABLET_STATUS = {
     enrollment: false,
 };
 
-function getStatusPill(role) {
-    return document.getElementById('pc-tablet-' + role + '-status');
+function getTabletStatusElements(role) {
+    var widget = document.getElementById('tabletStatusWidget');
+    if (!widget) {
+        return null;
+    }
+    return {
+        dot: widget.querySelector('.tablet-status-dot-indicator[data-role="' + role + '"]'),
+        row: widget.querySelector('.tablet-status-popover-row[data-role="' + role + '"]'),
+    };
 }
 
 function updateStatusPill(role, online) {
-    const pill = getStatusPill(role);
-    if (!pill) {
+    var elements = getTabletStatusElements(role);
+    if (!elements || !elements.dot || !elements.row) {
         return;
     }
-    const statusText = pill.querySelector('.status-text');
+
+    var statusText = elements.row.querySelector('.status-text');
     TABLET_STATUS[role] = online;
-    if (online) {
-        pill.classList.add('online');
-        statusText.textContent = role === 'access' ? 'Acceso Online' : 'Enrol. Online';
-    } else {
-        pill.classList.remove('online');
-        statusText.textContent = role === 'access' ? 'Acceso Offline' : 'Enrol. Offline';
+
+    elements.dot.classList.toggle('online', online);
+    elements.row.classList.toggle('online', online);
+
+    if (statusText) {
+        statusText.textContent = online ? 'Online' : 'Offline';
     }
+
     window.dispatchEvent(new CustomEvent('tabletStatusChanged', {
         detail: { online: online, role: role },
     }));
+}
+
+function setTabletPopoverOpen(isOpen) {
+    var trigger = document.getElementById('tabletStatusTrigger');
+    var popover = document.getElementById('tabletStatusPopover');
+    if (!trigger || !popover) {
+        return;
+    }
+    trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    popover.hidden = !isOpen;
+}
+
+function initTabletStatusPopover() {
+    var widget = document.getElementById('tabletStatusWidget');
+    var trigger = document.getElementById('tabletStatusTrigger');
+    var popover = document.getElementById('tabletStatusPopover');
+    if (!widget || !trigger || !popover) {
+        return;
+    }
+
+    trigger.addEventListener('click', function (event) {
+        event.stopPropagation();
+        var isOpen = trigger.getAttribute('aria-expanded') === 'true';
+        setTabletPopoverOpen(!isOpen);
+    });
+
+    document.addEventListener('click', function (event) {
+        if (!widget.contains(event.target)) {
+            setTabletPopoverOpen(false);
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            setTabletPopoverOpen(false);
+        }
+    });
 }
 
 function connectDashboardWebSocket() {
@@ -71,6 +117,9 @@ function connectDashboardWebSocket() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    initTabletStatusPopover();
+    updateStatusPill('access', false);
+    updateStatusPill('enrollment', false);
     if (WS_URL) {
         connectDashboardWebSocket();
     }
