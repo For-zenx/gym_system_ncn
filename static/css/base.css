@@ -10,15 +10,15 @@
     --text-muted: #94a3b8; /* Slate 400 */
     --border-color: #1e293b; /* Slate 800 */
     
-    /* Primary Color (Blue) */
-    --primary: #2563eb; /* Blue 600 */
-    --primary-hover: #1d4ed8; /* Blue 700 */
-    --primary-light: rgba(37, 99, 235, 0.15);
+    /* Primary Color (Emerald) */
+    --primary: #10b981; /* Emerald 500 */
+    --primary-hover: #059669; /* Emerald 600 */
+    --primary-light: rgba(16, 185, 129, 0.15); /* Emerald 100 Equivalent for Dark Mode */
     
     /* Secondary & Semantic */
     --danger: #ef4444; /* Red 500 */
     --danger-hover: #dc2626; /* Red 600 */
-    --success: #2563eb;
+    --success: #10b981;
     
     /* Layout Variables */
     --sidebar-width: 260px;
@@ -353,7 +353,7 @@ a.sidebar-brand-link:hover span {
 }
 
 .tablet-status-dot-indicator.online {
-    background-color: #2563eb;
+    background-color: #10b981;
     box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
 }
 
@@ -395,11 +395,11 @@ a.sidebar-brand-link:hover span {
 }
 
 .tablet-status-popover-row.online {
-    color: #2563eb;
+    color: #10b981;
 }
 
 .tablet-status-popover-row.online .tablet-status-popover-dot {
-    background-color: #2563eb;
+    background-color: #10b981;
 }
 
 .tablet-status-popover-label {
@@ -467,7 +467,7 @@ a.sidebar-brand-link:hover span {
 
 .badge-success {
     background-color: rgba(16, 185, 129, 0.15);
-    color: #2563eb;
+    color: #10b981;
     border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
@@ -730,7 +730,7 @@ a.sidebar-brand-link:hover span {
     align-items: center;
     gap: 0.5rem;
     padding: 0.4rem 0.8rem;
-    background-color: rgba(37, 99, 235, 0.1);
+    background-color: rgba(16, 185, 129, 0.1);
     border: 1px solid rgba(16, 185, 129, 0.3);
     border-radius: 9999px;
     cursor: pointer;
@@ -753,7 +753,7 @@ a.sidebar-brand-link:hover span {
 }
 
 .rate-widget-readonly:hover {
-    background-color: rgba(37, 99, 235, 0.1);
+    background-color: rgba(16, 185, 129, 0.1);
     transform: none;
 }
 
@@ -880,7 +880,7 @@ a.sidebar-brand-link:hover span {
 }
 
 .alert-success {
-    background-color: rgba(37, 99, 235, 0.1);
+    background-color: rgba(16, 185, 129, 0.1);
     border-left-color: var(--success);
     color: var(--success);
 }

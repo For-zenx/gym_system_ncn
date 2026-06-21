@@ -120,7 +120,7 @@
             label: 'Entradas',
             data: stats.counts,
             backgroundColor: 'rgba(16, 185, 129, 0.75)',
-            borderColor: '#2563eb',
+            borderColor: '#10b981',
             borderWidth: 1,
             borderRadius: 4,
         };

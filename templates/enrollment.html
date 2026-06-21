@@ -1,11 +1,11 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Alta de Nuevo Afiliado — NCN Gym{% endblock %}
+{% block title %}Alta de Nuevo Afiliado — NCN{% endblock %}
 {% block page_title %}Enrolamiento de Nuevo Afiliado{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=2.5">
+<link rel="stylesheet" href="{% static 'css/enrollment.css' %}?v=2.6">
 {% endblock %}
 
 {% block content %}
@@ -55,7 +55,7 @@
 
         {% if messages %}
             {% for message in messages %}
-                <div style="padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; background-color: {% if message.tags == 'error' %}rgba(239, 68, 68, 0.1){% else %}rgba(37, 99, 235, 0.1){% endif %}; color: {% if message.tags == 'error' %}#ef4444{% else %}#2563eb{% endif %}; border: 1px solid currentColor;">
+                <div style="padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; background-color: {% if message.tags == 'error' %}rgba(239, 68, 68, 0.1){% else %}rgba(16, 185, 129, 0.1){% endif %}; color: {% if message.tags == 'error' %}#ef4444{% else %}#10b981{% endif %}; border: 1px solid currentColor;">
                     {{ message }}
                 </div>
             {% endfor %}

@@ -1,4 +1,4 @@
-﻿// tablet_enrollment.js — Tablet de enrolamiento (NCN Gym)
+// tablet_enrollment.js — Tablet de enrolamiento (NCN)
 
 const WS_URL = window.TABLET_WS_URL;
 const RECONNECT_DELAY_MS = 3000;

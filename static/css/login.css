@@ -69,7 +69,7 @@ body, html {
 }
 
 .logo-area h1 span {
-    color: #2563eb; /* Emerald 500 */
+    color: #10b981; /* Emerald 500 */
 }
 
 .form-group {
@@ -98,7 +98,7 @@ body, html {
 
 .form-group input:focus {
     outline: none;
-    border-color: #2563eb; /* Emerald 500 */
+    border-color: #10b981; /* Emerald 500 */
     background: rgba(0, 0, 0, 0.4);
     box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15); /* Emerald shadow */
 }
@@ -106,7 +106,7 @@ body, html {
 .btn-submit {
     width: 100%;
     padding: 1rem;
-    background-color: #2563eb; /* Emerald 500 */
+    background-color: #10b981; /* Emerald 500 */
     color: #ffffff;
     border: none;
     border-radius: 10px;

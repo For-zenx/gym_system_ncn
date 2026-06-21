@@ -1,5 +1,5 @@
-﻿// DEPRECATED: TASK-045 — reemplazado por tablet_access.js y tablet_enrollment.js
-// tablet.js — Lógica de la interfaz de la tablet (Gym System - NCN Gym)
+// DEPRECATED: TASK-045 — reemplazado por tablet_access.js y tablet_enrollment.js
+// tablet.js — Lógica de la interfaz de la tablet (Gym System - NCN)
 
 const WS_URL = window.TABLET_WS_URL; // Inyectado desde el template Django
 const RECONNECT_DELAY_MS = 3000;

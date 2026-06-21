@@ -1,11 +1,11 @@
 ﻿{% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Estadísticas — NCN Gym{% endblock %}
+{% block title %}Estadísticas — NCN{% endblock %}
 {% block page_title %}Estadísticas{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/stats.css' %}?v=1.0">
+<link rel="stylesheet" href="{% static 'css/stats.css' %}?v=1.1">
 {% endblock %}
 
 {% block content %}
@@ -70,5 +70,5 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script src="{% static 'js/stats_entry_hours.js' %}?v=1.0"></script>
+<script src="{% static 'js/stats_entry_hours.js' %}?v=1.1"></script>
 {% endblock %}
