@@ -1,5 +1,4 @@
 (function () {
-    const TABLET_ROLE = 'enrollment';
     const offlineOverlay = document.getElementById('tablet-offline-overlay');
     const statusEl = document.getElementById('reenrollment-photo-status');
     const imgElement = document.getElementById('img-frente');
@@ -85,9 +84,6 @@
     window.retakeEnrollmentPhoto = reconnectTablet;
 
     window.addEventListener('tabletStatusChanged', function (e) {
-        if (e.detail.role !== TABLET_ROLE) {
-            return;
-        }
         if (!offlineOverlay) {
             return;
         }

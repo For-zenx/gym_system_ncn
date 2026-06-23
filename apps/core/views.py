@@ -93,7 +93,7 @@ def enrollment(request):
         if not foto_frente_b64:
             return _enrollment_error_response(
                 request,
-                "Debe capturar la foto del afiliado en la tablet de enrolamiento.",
+                "Debe capturar la foto del afiliado en la tablet.",
                 post_data=request.POST,
             )
 

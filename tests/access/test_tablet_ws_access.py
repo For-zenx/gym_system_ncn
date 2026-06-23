@@ -6,7 +6,7 @@ from apps.access.hardware import TurnstilePulseResult
 from apps.access.models import AccessLog
 from config.asgi import application
 
-from tests.access.conftest import WS_TABLET_ACCESS
+from tests.access.conftest import WS_TABLET
 from tests.core.conftest import FAKE_PHOTO_B64
 
 
@@ -18,7 +18,7 @@ async def test_tablet_access_ws__connects(monkeypatch):
         lambda _img: None,
     )
 
-    communicator = WebsocketCommunicator(application, WS_TABLET_ACCESS)
+    communicator = WebsocketCommunicator(application, WS_TABLET)
     connected, _ = await communicator.connect()
     assert connected
     await communicator.disconnect()
@@ -32,7 +32,7 @@ async def test_tablet_access_ws__unknown_face_denied(monkeypatch):
         lambda _img: None,
     )
 
-    communicator = WebsocketCommunicator(application, WS_TABLET_ACCESS)
+    communicator = WebsocketCommunicator(application, WS_TABLET)
     await communicator.connect()
 
     await communicator.send_json_to({"type": "FRAME", "image": FAKE_PHOTO_B64})
@@ -65,7 +65,7 @@ async def test_tablet_access_ws__granted_creates_log_and_opens_turnstile(
         or TurnstilePulseResult(True, "COM_TEST", 1.0),
     )
 
-    communicator = WebsocketCommunicator(application, WS_TABLET_ACCESS)
+    communicator = WebsocketCommunicator(application, WS_TABLET)
     await communicator.connect()
 
     await communicator.send_json_to({"type": "FRAME", "image": FAKE_PHOTO_B64})
@@ -98,7 +98,7 @@ async def test_tablet_access_ws__expired_membership_denied(
         lambda: TurnstilePulseResult(True, "COM_TEST", 1.0),
     )
 
-    communicator = WebsocketCommunicator(application, WS_TABLET_ACCESS)
+    communicator = WebsocketCommunicator(application, WS_TABLET)
     await communicator.connect()
 
     await communicator.send_json_to({"type": "FRAME", "image": FAKE_PHOTO_B64})
@@ -123,7 +123,7 @@ async def test_tablet_access_ws__invalid_json_returns_error(monkeypatch):
         lambda _img: None,
     )
 
-    communicator = WebsocketCommunicator(application, WS_TABLET_ACCESS)
+    communicator = WebsocketCommunicator(application, WS_TABLET)
     await communicator.connect()
 
     await communicator.send_to(text_data="not-json")
@@ -143,7 +143,7 @@ async def test_tablet_access_ws__empty_image_returns_error(monkeypatch):
         lambda _img: None,
     )
 
-    communicator = WebsocketCommunicator(application, WS_TABLET_ACCESS)
+    communicator = WebsocketCommunicator(application, WS_TABLET)
     await communicator.connect()
 
     await communicator.send_json_to({"type": "FRAME", "image": ""})

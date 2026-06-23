@@ -15,40 +15,64 @@ from apps.access.services import (
 logger = logging.getLogger(__name__)
 
 DASHBOARD_GROUP = "dashboard"
-TABLET_ACCESS_GROUP = "tablet_access"
-TABLET_ENROLLMENT_GROUP = "tablet_enrollment"
+TABLET_GROUP = "tablet"
 
-TABLET_ROLE_ACCESS = "access"
-TABLET_ROLE_ENROLLMENT = "enrollment"
+ENROLLMENT_COMMAND_TYPES = frozenset({
+    "ENROLLMENT_START",
+    "ENROLLMENT_END",
+    "ENROLLMENT_SKIP_TERMS",
+    "ENROLLMENT_REQUIRE_TERMS",
+})
 
 
-class AccessTabletConsumer(AsyncWebsocketConsumer):
+class TabletConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         await self.accept()
-        await self.channel_layer.group_add(TABLET_ACCESS_GROUP, self.channel_name)
-        logger.info("Tablet de acceso conectada. Canal: %s", self.channel_name)
-        await self._notify_dashboard(TABLET_ROLE_ACCESS, True)
+        await self.channel_layer.group_add(TABLET_GROUP, self.channel_name)
+        logger.info("Tablet conectada. Canal: %s", self.channel_name)
+        await self._notify_dashboard(True)
 
     async def disconnect(self, code):
-        await self.channel_layer.group_discard(TABLET_ACCESS_GROUP, self.channel_name)
-        logger.info("Tablet de acceso desconectada. Canal: %s — Código: %s", self.channel_name, code)
-        await self._notify_dashboard(TABLET_ROLE_ACCESS, False)
+        await self.channel_layer.group_discard(TABLET_GROUP, self.channel_name)
+        logger.info("Tablet desconectada. Canal: %s — Código: %s", self.channel_name, code)
+        await self._notify_dashboard(False)
 
     async def receive(self, text_data=None, bytes_data=None):
         try:
             payload = json.loads(text_data)
         except (json.JSONDecodeError, TypeError):
-            logger.warning("Mensaje inválido recibido desde tablet de acceso: %s", text_data)
-            await self.send(json.dumps({"status": "ERROR", "reason": "Formato de mensaje inválido. Se esperaba JSON."}))
+            logger.warning("Mensaje inválido recibido desde la tablet: %s", text_data)
+            await self.send(json.dumps({
+                "status": "ERROR",
+                "reason": "Formato de mensaje inválido. Se esperaba JSON.",
+            }))
             return
 
-        if payload.get("type") == "FRAME":
+        message_type = payload.get("type")
+
+        if message_type == "FRAME":
             await self._handle_frame(payload)
+        elif message_type == "ENROLLMENT_PHOTO":
+            await self.channel_layer.group_send(
+                DASHBOARD_GROUP,
+                {
+                    "type": "enrollment_photo_forward",
+                    "photoType": payload.get("photoType"),
+                    "image": payload.get("image"),
+                },
+            )
+        elif message_type == "ENROLLMENT_TERMS_ACCEPTED":
+            await self.channel_layer.group_send(
+                DASHBOARD_GROUP,
+                {"type": "enrollment_terms_forward"},
+            )
         else:
-            message_type = payload.get("type")
-            logger.warning("Tipo de mensaje desconocido en tablet de acceso: %s", message_type)
-            await self.send(json.dumps({"status": "ERROR", "reason": f"Tipo de mensaje no reconocido: '{message_type}'"}))
+            logger.warning("Tipo de mensaje desconocido en tablet: %s", message_type)
+            await self.send(json.dumps({
+                "status": "ERROR",
+                "reason": "Tipo de mensaje no reconocido: '{0}'".format(message_type),
+            }))
 
     async def _handle_frame(self, payload):
         base64_image = payload.get("image", "")
@@ -116,67 +140,24 @@ class AccessTabletConsumer(AsyncWebsocketConsumer):
             },
         )
 
-    async def tablet_status_request(self, event):
-        await self._notify_dashboard(TABLET_ROLE_ACCESS, True)
-
-    async def _notify_dashboard(self, role, online):
-        await self.channel_layer.group_send(
-            DASHBOARD_GROUP,
-            {"type": "tablet_status", "role": role, "online": online},
-        )
-
-
-class EnrollmentTabletConsumer(AsyncWebsocketConsumer):
-
-    async def connect(self):
-        await self.accept()
-        await self.channel_layer.group_add(TABLET_ENROLLMENT_GROUP, self.channel_name)
-        logger.info("Tablet de enrolamiento conectada. Canal: %s", self.channel_name)
-        await self._notify_dashboard(TABLET_ROLE_ENROLLMENT, True)
-
-    async def disconnect(self, code):
-        await self.channel_layer.group_discard(TABLET_ENROLLMENT_GROUP, self.channel_name)
-        logger.info("Tablet de enrolamiento desconectada. Canal: %s — Código: %s", self.channel_name, code)
-        await self._notify_dashboard(TABLET_ROLE_ENROLLMENT, False)
-
-    async def receive(self, text_data=None, bytes_data=None):
-        try:
-            payload = json.loads(text_data)
-        except (json.JSONDecodeError, TypeError):
-            logger.warning("Mensaje inválido recibido desde tablet de enrolamiento: %s", text_data)
-            await self.send(json.dumps({"status": "ERROR", "reason": "Formato de mensaje inválido. Se esperaba JSON."}))
-            return
-
-        if payload.get("type") == "ENROLLMENT_PHOTO":
-            await self.channel_layer.group_send(
-                DASHBOARD_GROUP,
-                {
-                    "type": "enrollment_photo_forward",
-                    "photoType": payload.get("photoType"),
-                    "image": payload.get("image"),
-                },
-            )
-        elif payload.get("type") == "ENROLLMENT_TERMS_ACCEPTED":
-            await self.channel_layer.group_send(
-                DASHBOARD_GROUP,
-                {"type": "enrollment_terms_forward"},
-            )
-        else:
-            message_type = payload.get("type")
-            logger.warning("Tipo de mensaje desconocido en tablet de enrolamiento: %s", message_type)
-            await self.send(json.dumps({"status": "ERROR", "reason": f"Tipo de mensaje no reconocido: '{message_type}'"}))
-
-    async def enrollment_command(self, event):
+    async def tablet_command(self, event):
         await self.send(json.dumps(event.get("data", {})))
 
     async def tablet_status_request(self, event):
-        await self._notify_dashboard(TABLET_ROLE_ENROLLMENT, True)
+        await self._notify_dashboard(True)
 
-    async def _notify_dashboard(self, role, online):
+    async def _notify_dashboard(self, online):
         await self.channel_layer.group_send(
             DASHBOARD_GROUP,
-            {"type": "tablet_status", "role": role, "online": online},
+            {"type": "tablet_status", "online": online},
         )
+
+
+# DEPRECATED: TASK-002 — tablet única NCN; reemplazado por TabletConsumer.
+AccessTabletConsumer = TabletConsumer
+
+# DEPRECATED: TASK-002 — tablet única NCN; reemplazado por TabletConsumer.
+EnrollmentTabletConsumer = TabletConsumer
 
 
 class DashboardConsumer(AsyncWebsocketConsumer):
@@ -186,8 +167,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         await self.accept()
         await self.channel_layer.group_add(DASHBOARD_GROUP, self.channel_name)
         logger.info("Dashboard (PC) conectado. Canal: %s", self.channel_name)
-        await self.channel_layer.group_send(TABLET_ACCESS_GROUP, {"type": "tablet_status_request"})
-        await self.channel_layer.group_send(TABLET_ENROLLMENT_GROUP, {"type": "tablet_status_request"})
+        await self.channel_layer.group_send(TABLET_GROUP, {"type": "tablet_status_request"})
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(DASHBOARD_GROUP, self.channel_name)
@@ -201,16 +181,15 @@ class DashboardConsumer(AsyncWebsocketConsumer):
             return
 
         msg_type = payload.get("type")
-        if msg_type in ("ENROLLMENT_START", "ENROLLMENT_END", "ENROLLMENT_SKIP_TERMS", "ENROLLMENT_REQUIRE_TERMS"):
+        if msg_type in ENROLLMENT_COMMAND_TYPES:
             await self.channel_layer.group_send(
-                TABLET_ENROLLMENT_GROUP,
-                {"type": "enrollment_command", "data": payload},
+                TABLET_GROUP,
+                {"type": "tablet_command", "data": payload},
             )
 
     async def tablet_status(self, event):
         await self.send(json.dumps({
             "type": "tablet_status",
-            "role": event.get("role"),
             "online": event.get("online", False),
         }))
 

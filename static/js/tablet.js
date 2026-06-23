@@ -1,409 +1,603 @@
-// DEPRECATED: TASK-045 — reemplazado por tablet_access.js y tablet_enrollment.js
-// tablet.js — Lógica de la interfaz de la tablet (Gym System - NCN)
+// tablet.js — Tablet única NCN (acceso + enrolamiento dual-mode)
 
-const WS_URL = window.TABLET_WS_URL; // Inyectado desde el template Django
+const WS_URL = window.TABLET_WS_URL;
 const RECONNECT_DELAY_MS = 3000;
+const ACCESS_CAPTURE_COOLDOWN_MS = 2000;
+const ENROLLMENT_CAPTURE_COOLDOWN_MS = 2500;
+const RESULT_DISPLAY_MS = 4000;
+const JPEG_QUALITY = 0.9;
 
-// --- Referencias al DOM ---
+const MODE_ACCESS = 'access';
+const MODE_ENROLLMENT = 'enrollment';
+
 const cameraFeed = document.getElementById('camera-feed');
 const overlayCanvas = document.getElementById('overlay-canvas');
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
-
-// Nuevas referencias UI Enrolamiento
-const focusFrame = document.getElementById('focus-frame');
+const faceGuide = document.getElementById('face-guide');
+const faceGuideOvalAccess = document.querySelector('.access-guide-oval');
+const faceGuideOvalEnrollment = document.querySelector('.face-guide-oval');
+const accessBottomBanner = document.getElementById('access-bottom-banner');
+const accessBannerTitle = document.getElementById('access-banner-title');
+const accessBannerSubtitle = document.getElementById('access-banner-subtitle');
 const hudInstruction = document.getElementById('hud-instruction');
 const hudText = document.getElementById('hud-text');
-const arrowLeft = document.getElementById('arrow-left');
-const arrowRight = document.getElementById('arrow-right');
+const termsOverlay = document.getElementById('terms-overlay');
+const termsAcceptBtn = document.getElementById('terms-accept-btn');
 
-// Referencias UI Acceso
-const accessFlash = document.getElementById('access-flash');
-const accessIcon = document.getElementById('access-icon');
-const accessTitle = document.getElementById('access-title');
-const accessSubtitle = document.getElementById('access-subtitle');
-let isProcessingAccess = false;
-let isCooldown = false;
-let accessFlashTimeout = null;
-let serverTimeoutTimer = null;
-
+let currentMode = MODE_ACCESS;
 let socket = null;
 let reconnectTimer = null;
+let cameraStream = null;
 let canvasCtx = overlayCanvas.getContext('2d');
+let isModelsLoaded = false;
+let accessLoopActive = false;
 
-// --- DEBUG LOGGING ---
-function addDebugLog(msg) {
-    // Desactivado para producción
-    /*
-    console.log(msg);
-    const logContent = document.getElementById('debug-log-content');
-    if (!logContent) return;
-    const now = new Date();
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
-    const div = document.createElement('div');
-    div.textContent = `[${timeStr}] ${msg}`;
-    logContent.appendChild(div);
-    logContent.parentElement.scrollTop = logContent.parentElement.scrollHeight;
-    */
+let isProcessingAccess = false;
+let isCooldown = false;
+let resultTimeout = null;
+let serverTimeoutTimer = null;
+let lastAccessCaptureTime = 0;
+
+let isEnrollmentCaptureActive = false;
+let enrollmentCaptureCompleted = false;
+let termsAcceptedThisSession = false;
+let skipTermsAfterCapture = false;
+let lastEnrollmentCaptureTime = 0;
+let enrollmentDetectionRunning = false;
+let stableSince = null;
+
+async function loadModels() {
+    const MODEL_URL = '/static/models';
+    await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+    ]);
+    isModelsLoaded = true;
 }
 
-// --- Estados del Sistema ---
-let currentMode = 'NORMAL';
-let enrollmentStep = 'FRONT';
-let isModelsLoaded = false;
-let lastCaptureTime = 0;
-const CAPTURE_COOLDOWN_MS = 2500;
+function setStatus(state, text) {
+    statusDot.className = state;
+    statusText.textContent = text;
+}
 
-// ─────────────────────────────────────────────
-// Inteligencia Artificial (face-api.js)
-// ─────────────────────────────────────────────
-async function loadModels() {
-    hudText.textContent = 'Cargando motor de IA...';
-    hudInstruction.classList.remove('hidden');
-    
-    const MODEL_URL = '/static/models';
-    try {
-        await Promise.all([
-            faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-            faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
-        ]);
-        isModelsLoaded = true;
-        addDebugLog('Modelos de IA cargados correctamente.');
-        
-        hudText.textContent = 'Cámara lista.';
-        setTimeout(() => {
-            if (currentMode === 'NORMAL') exitEnrollmentMode();
-        }, 1000);
-    } catch (error) {
-        addDebugLog(`Error cargando IA: ${error}`);
-        hudText.textContent = 'Error iniciando sistema facial.';
+function setHud(text) {
+    hudText.textContent = text;
+}
+
+function hideTermsScreen() {
+    if (termsOverlay) {
+        termsOverlay.classList.add('hidden');
     }
 }
 
-async function detectFaceLoop() {
-    if (!isModelsLoaded || cameraFeed.paused || cameraFeed.ended) {
-        requestAnimationFrame(detectFaceLoop);
+function showTermsScreen() {
+    if (!termsOverlay) {
+        finishEnrollmentWaiting();
+        return;
+    }
+    termsOverlay.classList.remove('hidden');
+    setStatus('connected', 'Lea y acepte');
+}
+
+function resetStability() {
+    stableSince = null;
+}
+
+function clearAccessTimers() {
+    clearTimeout(resultTimeout);
+    clearTimeout(serverTimeoutTimer);
+}
+
+function setFaceGuideVariant(variant) {
+    faceGuide.className = 'face-guide face-guide-access active' + (variant ? ' ' + variant : '');
+}
+
+function hideBottomBanner() {
+    accessBottomBanner.className = 'access-bottom-banner hidden';
+    accessBottomBanner.classList.remove(
+        'granted', 'denied_unknown', 'denied_suspended', 'denied_schedule', 'denied_other', 'processing'
+    );
+}
+
+function showBottomBanner(variant, title, subtitle) {
+    hideBottomBanner();
+    accessBottomBanner.classList.remove('hidden');
+    accessBottomBanner.classList.add(variant);
+    accessBannerTitle.textContent = title;
+    accessBannerSubtitle.textContent = subtitle || '';
+}
+
+function clearAccessResult() {
+    setFaceGuideVariant('');
+    hideBottomBanner();
+    hudInstruction.classList.remove('hidden');
+    isProcessingAccess = false;
+}
+
+function formatCutLine(data) {
+    if (data.covered_until_display) {
+        return 'Vigente hasta ' + data.covered_until_display;
+    }
+    if (data.next_cut_display) {
+        return 'Próximo corte: ' + data.next_cut_display;
+    }
+    if (data.cut_day) {
+        return 'Fecha de corte: día ' + data.cut_day + ' de cada mes';
+    }
+    if (data.days_until_cut != null) {
+        const days = data.days_until_cut;
+        const dayWord = days === 1 ? 'día' : 'días';
+        return 'Faltan ' + days + ' ' + dayWord + ' para el corte';
+    }
+    if (data.days_membership_left != null) {
+        const days = data.days_membership_left;
+        const dayWord = days === 1 ? 'día' : 'días';
+        return 'Membresía activa: ' + days + ' ' + dayWord;
+    }
+    return '';
+}
+
+function showAccessProcessing() {
+    isProcessingAccess = true;
+    setFaceGuideVariant('processing');
+    hudInstruction.classList.add('hidden');
+    showBottomBanner('processing', 'Verificando…', 'Un momento por favor');
+}
+
+function showAccessResult(data) {
+    if (currentMode !== MODE_ACCESS) {
         return;
     }
 
-    // Ajustar tamaño del canvas interno al tamaño real del video
+    const variant = data.variant || (data.status === 'GRANTED' ? 'granted' : 'denied_unknown');
+    isCooldown = true;
+    isProcessingAccess = false;
+    setFaceGuideVariant(variant);
+    hudInstruction.classList.add('hidden');
+
+    let title = '';
+    let subtitle = '';
+
+    if (variant === 'granted') {
+        title = '¡Aprobado!';
+        const name = data.name ? data.name + ' — ' : '';
+        const cutLine = formatCutLine(data);
+        subtitle = name + (cutLine || 'Acceso concedido');
+    } else if (variant === 'denied_unknown') {
+        title = 'No reconocido';
+        subtitle = data.detail || 'Rostro no registrado en el sistema';
+    } else if (variant === 'denied_schedule') {
+        title = 'Fuera de horario';
+        subtitle = (data.name ? data.name + ' — ' : '') + (data.detail || 'Horario no permitido');
+    } else if (variant === 'denied_suspended') {
+        title = 'Acceso suspendido';
+        const since = data.suspended_since_display
+            ? 'Suspendido desde ' + data.suspended_since_display
+            : (data.detail || 'Suscripción sin pagar');
+        subtitle = (data.name ? data.name + ' — ' : '') + since;
+    } else {
+        title = 'Acceso denegado';
+        subtitle = (data.name ? data.name + ' — ' : '') + (data.detail || data.reason || '');
+    }
+
+    showBottomBanner(variant, title, subtitle);
+
+    clearTimeout(resultTimeout);
+    const waitMs = variant === 'granted' ? RESULT_DISPLAY_MS : 3200;
+    resultTimeout = setTimeout(function () {
+        if (currentMode !== MODE_ACCESS) {
+            return;
+        }
+        clearAccessResult();
+        setHud('Coloque su rostro en el óvalo');
+        setTimeout(function () {
+            if (currentMode === MODE_ACCESS) {
+                isCooldown = false;
+            }
+        }, 300);
+    }, waitMs);
+}
+
+async function accessDetectLoop() {
+    if (!accessLoopActive || currentMode !== MODE_ACCESS) {
+        return;
+    }
+
+    if (!isModelsLoaded || cameraFeed.paused || cameraFeed.ended) {
+        requestAnimationFrame(accessDetectLoop);
+        return;
+    }
+
     const displaySize = { width: cameraFeed.videoWidth, height: cameraFeed.videoHeight };
     if (overlayCanvas.width !== displaySize.width) {
         faceapi.matchDimensions(overlayCanvas, displaySize);
     }
 
     const now = Date.now();
-    const canCapture = (now - lastCaptureTime) > CAPTURE_COOLDOWN_MS;
+    const canCapture = (now - lastAccessCaptureTime) > ACCESS_CAPTURE_COOLDOWN_MS;
 
     try {
-        if (currentMode === 'NORMAL') {
-            // ===== LÓGICA DE ACCESO (VALIDACIÓN) =====
-            const detection = await faceapi.detectSingleFace(cameraFeed, new faceapi.TinyFaceDetectorOptions());
-            canvasCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-            
-            if (detection) {
-                const resizedDetection = faceapi.resizeResults(detection, displaySize);
-                faceapi.draw.drawDetections(overlayCanvas, resizedDetection);
-                
-                if (canCapture && detection.score > 0.8) {
-                    if (!isProcessingAccess && !isCooldown) {
-                        const faceWidth = resizedDetection.box.width;
-                        if (faceWidth > 120) { // Asegurar que está lo suficientemente cerca
-                            addDebugLog(`Rostro detectado (Score: ${detection.score.toFixed(2)}, Ancho: ${faceWidth.toFixed(0)}px). Iniciando validación...`);
-                            showAccessProcessing();
-                            capturarFoto('NORMAL');
-                            lastCaptureTime = now;
-                        }
-                    }
-                }
-            }
-        } else if (currentMode === 'ENROLLMENT') {
-            // Modo Enrolamiento: Detección pesada con Landmarks para pose
-            if (enrollmentStep === 'DONE') {
-                canvasCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-                requestAnimationFrame(detectFaceLoop);
-                return; // Esperando salir del modo
-            }
+        const detection = await faceapi.detectSingleFace(
+            cameraFeed,
+            TabletFaceUtils.accessDetectorOptions()
+        );
+        canvasCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-            const detection = await faceapi.detectSingleFace(cameraFeed, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
-            canvasCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-            
-            if (detection) {
-                const resizedDetection = faceapi.resizeResults(detection, displaySize);
-                faceapi.draw.drawFaceLandmarks(overlayCanvas, resizedDetection);
-                
-                // --- Cálculo de Pose (Yaw) ---
-                const landmarks = detection.landmarks;
-                const nose = landmarks.getNose()[3]; // Punta de la nariz (relativo al centro)
-                const jawOutline = landmarks.getJawOutline();
-                const leftCheek = jawOutline[0];
-                const rightCheek = jawOutline[16];
-                
-                const distLeft = Math.abs(nose.x - leftCheek.x);
-                const distRight = Math.abs(rightCheek.x - nose.x);
-                const ratio = distLeft / distRight; 
-                
-                if (canCapture) {
-                    if (enrollmentStep === 'FRONT' && ratio > 0.75 && ratio < 1.35) {
-                        hudText.textContent = "¡Perfecto! Capturando...";
-                        capturarFoto('FRONT');
-                        lastCaptureTime = now;
-                        enrollmentStep = 'LEFT';
-                        setTimeout(() => {
-                            hudText.textContent = "Mire hacia la FLECHA";
-                            arrowLeft.classList.remove('hidden');
-                        }, 1000);
-                        
-                    } else if (enrollmentStep === 'LEFT' && ratio > 1.6) {
-                        hudText.textContent = "¡Perfecto! Capturando...";
-                        arrowLeft.classList.add('hidden');
-                        capturarFoto('LEFT');
-                        lastCaptureTime = now;
-                        enrollmentStep = 'RIGHT';
-                        setTimeout(() => {
-                            hudText.textContent = "Mire hacia la FLECHA";
-                            arrowRight.classList.remove('hidden');
-                        }, 1000);
-                        
-                    } else if (enrollmentStep === 'RIGHT' && ratio < 0.6) {
-                        hudText.textContent = "¡Perfecto! Capturando...";
-                        arrowRight.classList.add('hidden');
-                        capturarFoto('RIGHT');
-                        lastCaptureTime = now;
-                        enrollmentStep = 'DONE';
-                        setTimeout(() => {
-                            hudText.textContent = "¡Enrolamiento Exitoso!";
-                        }, 1000);
-                    }
-                }
+        if (detection && canCapture && !isProcessingAccess && !isCooldown) {
+            const resizedDetection = faceapi.resizeResults(detection, displaySize);
+
+            if (TabletFaceUtils.meetsAccessCaptureCriteria(
+                detection, resizedDetection, cameraFeed, faceGuideOvalAccess
+            )) {
+                showAccessProcessing();
+                sendAccessFrame();
+                lastAccessCaptureTime = now;
+            } else if (!isProcessingAccess) {
+                setHud('Coloque su rostro en el óvalo');
             }
+        } else if (!detection && !isProcessingAccess) {
+            setHud('Coloque su rostro en el óvalo');
         }
     } catch (e) {
-        console.error("Error en bucle de detección:", e);
+        console.error('[Tablet] Error en bucle de acceso:', e);
     }
 
-    requestAnimationFrame(detectFaceLoop);
+    requestAnimationFrame(accessDetectLoop);
 }
 
-function capturarFoto(tipoFoto) {
+function startAccessLoop() {
+    if (!accessLoopActive) {
+        accessLoopActive = true;
+        requestAnimationFrame(accessDetectLoop);
+    }
+}
+
+function stopAccessLoop() {
+    accessLoopActive = false;
+}
+
+function sendAccessFrame() {
     const canvas = document.createElement('canvas');
     canvas.width = cameraFeed.videoWidth;
     canvas.height = cameraFeed.videoHeight;
     const ctx = canvas.getContext('2d');
-    
-    // TRUCO MATEMÁTICO: Voltear horizontalmente el canvas de memoria
-    // Así la foto final se guarda "al derecho", neutralizando el espejo visual.
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
-    
-    // Dibujar el fotograma actual del video en el canvas
     ctx.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
-    
-    // Extraer en formato base64 JPEG
     const dataURL = canvas.toDataURL('image/jpeg', 0.85);
-    addDebugLog(`Captura ${tipoFoto} en memoria. Peso aprox: ${Math.round(dataURL.length/1024)} KB`);
-    
+
     if (socket && socket.readyState === WebSocket.OPEN) {
-        if (tipoFoto === 'NORMAL') {
-            addDebugLog(`Enviando FRAME al servidor por WebSocket...`);
-            socket.send(JSON.stringify({
-                type: 'FRAME',
-                image: dataURL
-            }));
-            
-            clearTimeout(serverTimeoutTimer);
-            serverTimeoutTimer = setTimeout(() => { 
-                if (isProcessingAccess) {
-                    addDebugLog(`TIMEOUT: El servidor no respondió después de 8s.`);
-                    hideAccessFlash(); 
-                }
-            }, 8000);
-        } else {
-            addDebugLog(`Enviando ENROLLMENT_PHOTO al servidor...`);
-            socket.send(JSON.stringify({
-                type: 'ENROLLMENT_PHOTO',
-                photoType: tipoFoto,
-                image: dataURL
-            }));
-        }
+        socket.send(JSON.stringify({ type: 'FRAME', image: dataURL }));
+        clearTimeout(serverTimeoutTimer);
+        serverTimeoutTimer = setTimeout(function () {
+            if (isProcessingAccess && currentMode === MODE_ACCESS) {
+                showAccessResult({
+                    status: 'DENIED',
+                    variant: 'denied_unknown',
+                    detail: 'Sin respuesta del servidor',
+                });
+            }
+        }, 8000);
     } else {
-        addDebugLog(`ERROR: No se pudo enviar foto, WebSocket desconectado.`);
-        if (isProcessingAccess) {
-            showAccessResult('DENIED', 'Servidor Offline', 'Sin conexión con el backend', 5000);
-        }
+        showAccessResult({
+            status: 'DENIED',
+            variant: 'denied_unknown',
+            detail: 'Sin conexión con el servidor',
+        });
     }
 }
 
-// ─────────────────────────────────────────────
-// Cámara
-// ─────────────────────────────────────────────
-async function startCamera() {
+async function enrollmentDetectLoop() {
+    if (!isEnrollmentCaptureActive || !isModelsLoaded || enrollmentCaptureCompleted
+        || currentMode !== MODE_ENROLLMENT) {
+        enrollmentDetectionRunning = false;
+        return;
+    }
+
+    if (cameraFeed.paused || cameraFeed.ended) {
+        requestAnimationFrame(enrollmentDetectLoop);
+        return;
+    }
+
+    const displaySize = { width: cameraFeed.videoWidth, height: cameraFeed.videoHeight };
+    if (overlayCanvas.width !== displaySize.width) {
+        faceapi.matchDimensions(overlayCanvas, displaySize);
+    }
+
+    const now = Date.now();
+    const canCapture = (now - lastEnrollmentCaptureTime) > ENROLLMENT_CAPTURE_COOLDOWN_MS;
+
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
-        });
-        cameraFeed.srcObject = stream;
-        
-        // Iniciar el bucle de IA una vez que el video tenga dimensiones reales
-        cameraFeed.addEventListener('loadedmetadata', () => {
-            requestAnimationFrame(detectFaceLoop);
-        });
-    } catch (err) {
-        hudText.textContent = 'No se pudo acceder a la cámara.';
-        hudInstruction.classList.remove('hidden');
-        console.error('[Tablet] Error al iniciar cámara:', err);
+        const detection = await faceapi.detectSingleFace(
+            cameraFeed,
+            TabletFaceUtils.detectorOptions()
+        ).withFaceLandmarks();
+        canvasCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+        if (detection && canCapture) {
+            const resizedDetection = faceapi.resizeResults(detection, displaySize);
+
+            if (TabletFaceUtils.meetsCaptureCriteria(
+                detection, resizedDetection, cameraFeed, faceGuideOvalEnrollment
+            )) {
+                if (stableSince === null) {
+                    stableSince = now;
+                }
+
+                if (now - stableSince >= TabletFaceUtils.STABILITY_MS) {
+                    hudText.textContent = 'Capturando...';
+                    sendEnrollmentPhoto();
+                    lastEnrollmentCaptureTime = now;
+                    enrollmentCaptureCompleted = true;
+                    resetStability();
+                    setTimeout(function () {
+                        stopCameraTracks();
+                        faceGuide.classList.remove('active');
+                        faceGuide.classList.remove('face-guide-access');
+                        hudInstruction.classList.add('hidden');
+                        if (skipTermsAfterCapture) {
+                            finishEnrollmentWaiting();
+                        } else {
+                            showTermsScreen();
+                        }
+                    }, 1200);
+                } else {
+                    hudText.textContent = 'Coloque su rostro en el óvalo';
+                }
+            } else {
+                resetStability();
+                hudText.textContent = 'Coloque su rostro en el óvalo';
+            }
+        } else if (!detection) {
+            resetStability();
+        }
+    } catch (e) {
+        console.error('[Tablet] Error en bucle de enrolamiento:', e);
+        resetStability();
+    }
+
+    requestAnimationFrame(enrollmentDetectLoop);
+}
+
+function startEnrollmentDetectionLoop() {
+    if (!enrollmentDetectionRunning && isEnrollmentCaptureActive && !enrollmentCaptureCompleted) {
+        enrollmentDetectionRunning = true;
+        requestAnimationFrame(enrollmentDetectLoop);
     }
 }
 
-// ─────────────────────────────────────────────
-// WebSocket
-// ─────────────────────────────────────────────
+function sendEnrollmentPhoto() {
+    const canvas = document.createElement('canvas');
+    canvas.width = cameraFeed.videoWidth;
+    canvas.height = cameraFeed.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
+    const dataURL = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'ENROLLMENT_PHOTO',
+            photoType: 'FRONT',
+            image: dataURL,
+        }));
+    }
+}
+
+async function ensureCamera() {
+    if (cameraStream) {
+        return;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+    cameraStream = stream;
+    cameraFeed.srcObject = stream;
+    return new Promise(function (resolve) {
+        cameraFeed.addEventListener('loadedmetadata', resolve, { once: true });
+    });
+}
+
+function stopCameraTracks() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(function (track) {
+            track.stop();
+        });
+        cameraStream = null;
+    }
+    cameraFeed.srcObject = null;
+    canvasCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+}
+
+function resetEnrollmentState() {
+    isEnrollmentCaptureActive = false;
+    enrollmentCaptureCompleted = false;
+    termsAcceptedThisSession = false;
+    skipTermsAfterCapture = false;
+    enrollmentDetectionRunning = false;
+    resetStability();
+    hideTermsScreen();
+}
+
+async function enterAccessMode() {
+    currentMode = MODE_ACCESS;
+    resetEnrollmentState();
+    clearAccessTimers();
+    clearAccessResult();
+    isCooldown = false;
+    isProcessingAccess = false;
+    lastAccessCaptureTime = 0;
+
+    faceGuide.classList.add('face-guide-access');
+    faceGuide.classList.add('active');
+    hudInstruction.classList.remove('hidden');
+    setHud('Coloque su rostro en el óvalo');
+
+    try {
+        await ensureCamera();
+        stopAccessLoop();
+        startAccessLoop();
+        setStatus('connected', 'Conectado');
+    } catch (err) {
+        console.error('[Tablet] Error al iniciar cámara:', err);
+        setStatus('disconnected', 'Sin cámara');
+    }
+}
+
+async function startEnrollmentSession() {
+    currentMode = MODE_ENROLLMENT;
+    clearAccessTimers();
+    clearAccessResult();
+    stopAccessLoop();
+    isCooldown = true;
+    isProcessingAccess = false;
+
+    hideTermsScreen();
+    faceGuide.classList.add('active');
+    faceGuide.classList.remove('face-guide-access');
+    hudInstruction.classList.remove('hidden');
+    hudText.textContent = 'Coloque su rostro en el óvalo';
+    enrollmentCaptureCompleted = false;
+    termsAcceptedThisSession = false;
+    skipTermsAfterCapture = false;
+    isEnrollmentCaptureActive = true;
+    resetStability();
+    setStatus('connected', 'Capturando');
+
+    try {
+        stopCameraTracks();
+        await ensureCamera();
+        startEnrollmentDetectionLoop();
+    } catch (err) {
+        console.error('[Tablet] Error iniciando enrolamiento:', err);
+        hudText.textContent = 'No se pudo acceder a la cámara.';
+        setStatus('disconnected', 'Sin cámara');
+    }
+}
+
+function finishEnrollmentWaiting() {
+    hideTermsScreen();
+    faceGuide.classList.remove('active');
+    hudInstruction.classList.add('hidden');
+    isEnrollmentCaptureActive = false;
+    stopCameraTracks();
+    setStatus('connected', termsAcceptedThisSession ? 'Listo' : 'Foto lista');
+}
+
+function stopEnrollmentSession() {
+    enterAccessMode();
+}
+
+function acceptTermsOnTablet() {
+    if (termsAcceptedThisSession) {
+        return;
+    }
+    termsAcceptedThisSession = true;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'ENROLLMENT_TERMS_ACCEPTED' }));
+    }
+    finishEnrollmentWaiting();
+}
+
+function skipTermsOnTablet() {
+    termsAcceptedThisSession = true;
+    skipTermsAfterCapture = true;
+    hideTermsScreen();
+    if (enrollmentCaptureCompleted) {
+        finishEnrollmentWaiting();
+    }
+}
+
+function requireTermsOnTablet() {
+    termsAcceptedThisSession = false;
+    if (enrollmentCaptureCompleted) {
+        showTermsScreen();
+        setStatus('connected', 'Lea y acepte');
+    }
+}
+
+function handleEnrollmentCommand(data) {
+    if (data.type === 'ENROLLMENT_START') {
+        startEnrollmentSession();
+    } else if (data.type === 'ENROLLMENT_END') {
+        stopEnrollmentSession();
+    } else if (data.type === 'ENROLLMENT_SKIP_TERMS') {
+        skipTermsOnTablet();
+    } else if (data.type === 'ENROLLMENT_REQUIRE_TERMS') {
+        requireTermsOnTablet();
+    }
+}
+
+function handleAccessResponse(data) {
+    if (currentMode !== MODE_ACCESS) {
+        return;
+    }
+
+    clearTimeout(serverTimeoutTimer);
+
+    if (data.status === 'ERROR') {
+        showAccessResult({
+            status: 'DENIED',
+            variant: 'denied_unknown',
+            detail: data.reason || 'Error',
+        });
+        return;
+    }
+
+    if (data.status === 'GRANTED' || data.status === 'DENIED') {
+        if (!data.variant) {
+            data.variant = data.status === 'GRANTED' ? 'granted' : 'denied_unknown';
+        }
+        showAccessResult(data);
+    }
+}
+
+function handleServerMessage(data) {
+    if (data.type && String(data.type).indexOf('ENROLLMENT_') === 0) {
+        handleEnrollmentCommand(data);
+        return;
+    }
+    handleAccessResponse(data);
+}
+
 function connectWebSocket() {
     clearTimeout(reconnectTimer);
     socket = new WebSocket(WS_URL);
 
-    socket.onopen = () => {
-        setStatus('connected', 'Conectado');
+    socket.onopen = function () {
+        if (currentMode === MODE_ENROLLMENT && !isEnrollmentCaptureActive && !enrollmentCaptureCompleted) {
+            enterAccessMode();
+        } else if (currentMode === MODE_ACCESS) {
+            setStatus('connected', 'Conectado');
+        }
     };
 
-    socket.onclose = (event) => {
+    socket.onclose = function () {
         setStatus('disconnected', 'Sin conexión...');
-        addDebugLog(`WebSocket cerrado. Reintentando reconexión...`);
-        
-        if (isProcessingAccess) {
-            hideAccessFlash();
-        }
-        
+        stopAccessLoop();
         reconnectTimer = setTimeout(connectWebSocket, RECONNECT_DELAY_MS);
     };
 
-    socket.onerror = (error) => {
-        // console.error('[Tablet] Error en WebSocket:', error);
-    };
-
-    socket.onmessage = (event) => {
+    socket.onmessage = function (event) {
         try {
-            const data = JSON.parse(event.data);
-            handleServerMessage(data);
+            handleServerMessage(JSON.parse(event.data));
         } catch (err) {
-            // console.error('[Tablet] Mensaje inválido del servidor:', event.data);
+            console.error('[Tablet] Mensaje inválido:', event.data);
         }
     };
 }
 
-// ─────────────────────────────────────────────
-// Manejo de mensajes del servidor
-// ─────────────────────────────────────────────
-function handleServerMessage(data) {
-    const msgType = data.type;
-    
-    clearTimeout(serverTimeoutTimer);
-
-    if (msgType === 'ENROLLMENT_START') {
-        addDebugLog(`Mensaje WS: ENROLLMENT_START`);
-        enterEnrollmentMode();
-    } else if (msgType === 'ENROLLMENT_END') {
-        addDebugLog(`Mensaje WS: ENROLLMENT_END`);
-        exitEnrollmentMode();
-    } else if (data.status === 'GRANTED') {
-        addDebugLog(`Mensaje WS: GRANTED para ${data.name}`);
-        showAccessResult('GRANTED', '¡Bienvenido!', data.name);
-    } else if (data.status === 'DENIED') {
-        let reason = data.reason || 'Rostro no reconocido';
-        if (data.name) {
-            reason = `${data.name} - ${reason}`;
-        }
-        addDebugLog(`Mensaje WS: DENIED. Motivo: ${reason}`);
-        showAccessResult('DENIED', 'Acceso Denegado', reason);
-    } else {
-        addDebugLog(`Mensaje WS Desconocido: ${JSON.stringify(data)}`);
+document.addEventListener('DOMContentLoaded', function () {
+    if (termsAcceptBtn) {
+        termsAcceptBtn.addEventListener('click', acceptTermsOnTablet);
     }
-}
-
-// ─────────────────────────────────────────────
-// UI Acceso (Flash)
-// ─────────────────────────────────────────────
-function showAccessProcessing() {
-    isProcessingAccess = true;
-    accessFlash.className = 'access-flash processing';
-    accessIcon.innerHTML = '<div class="spinner"></div>';
-    accessTitle.textContent = 'Procesando...';
-    accessSubtitle.textContent = 'Verificando identidad';
-}
-
-function showAccessResult(status, mainText, subText, customWait) {
-    const waitTime = customWait || (status === 'GRANTED' ? 5000 : 3000);
-
-    isCooldown = true;
-
-    if (status === 'GRANTED') {
-        accessFlash.className = 'access-flash granted';
-        accessIcon.textContent = '✅';
-    } else {
-        accessFlash.className = 'access-flash denied';
-        accessIcon.textContent = '❌';
-    }
-    accessTitle.textContent = mainText;
-    accessSubtitle.textContent = subText || '';
-    
-    clearTimeout(accessFlashTimeout);
-    accessFlashTimeout = setTimeout(() => {
-        addDebugLog(`Ocultando Flash. Iniciando cámara...`);
-        hideAccessFlash();
-        
-        addDebugLog(`Manteniendo Cooldown invisible por ${waitTime/1000}s más...`);
-        setTimeout(() => {
-            isCooldown = false;
-            addDebugLog(`Cooldown finalizado. Listo.`);
-        }, waitTime);
-    }, waitTime);
-}
-
-function hideAccessFlash() {
-    accessFlash.className = 'access-flash hidden';
-    isProcessingAccess = false;
-}
-
-function enterEnrollmentMode() {
-    currentMode = 'ENROLLMENT';
-    enrollmentStep = 'FRONT';
-    
-    // Activar UI Inmersiva
-    focusFrame.classList.add('active');
-    hudInstruction.classList.remove('hidden');
-    hudText.textContent = 'Mire al centro del cuadro';
-    arrowLeft.classList.add('hidden');
-    arrowRight.classList.add('hidden');
-    
-    console.log('[Tablet] Modo Enrolamiento activado.');
-}
-
-function exitEnrollmentMode() {
-    currentMode = 'NORMAL';
-    
-    // Desactivar UI Inmersiva
-    focusFrame.classList.remove('active');
-    hudInstruction.classList.add('hidden');
-    arrowLeft.classList.add('hidden');
-    arrowRight.classList.add('hidden');
-    
-    console.log('[Tablet] Modo Enrolamiento finalizado. Volviendo a reposo.');
-}
-
-// ─────────────────────────────────────────────
-// Utilidades
-// ─────────────────────────────────────────────
-function setStatus(state, text) {
-    statusDot.className = state; 
-    statusText.textContent = text;
-}
-
-// ─────────────────────────────────────────────
-// Inicialización
-// ─────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-    // Primero cargamos los modelos, la cámara se lanza en paralelo
-    loadModels();
-    startCamera();
+    loadModels().then(function () {
+        return enterAccessMode();
+    }).catch(function (err) {
+        console.error('[Tablet] Error cargando IA:', err);
+        setStatus('disconnected', 'Error IA');
+    });
     connectWebSocket();
 });

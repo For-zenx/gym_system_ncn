@@ -18,24 +18,23 @@ from .services import evaluate_access_integrity
 
 def _tablet_ws_url(request, path):
     ws_scheme = "wss" if request.is_secure() else "ws"
-    return f"{ws_scheme}://{request.get_host()}{path}"
+    return "{0}://{1}{2}".format(ws_scheme, request.get_host(), path)
 
 
-def tablet_access_view(request):
-    return render(request, "tablet_access.html", {
-        "ws_url": _tablet_ws_url(request, "/ws/tablet/acceso/"),
-    })
-
-
-def tablet_enrollment_view(request):
-    return render(request, "tablet_enrollment.html", {
-        "ws_url": _tablet_ws_url(request, "/ws/tablet/enrolamiento/"),
-    })
-
-
-# DEPRECATED: TASK-045 — reemplazado por tablet_access_view (una sola tablet dual-mode).
 def tablet_view(request):
-    return tablet_access_view(request)
+    return render(request, "tablet.html", {
+        "ws_url": _tablet_ws_url(request, "/ws/tablet/"),
+    })
+
+
+# DEPRECATED: TASK-002 — tablet única NCN; redirigir a tablet_view.
+def tablet_access_view(request):
+    return redirect("tablet", permanent=True)
+
+
+# DEPRECATED: TASK-002 — tablet única NCN; redirigir a tablet_view.
+def tablet_enrollment_view(request):
+    return redirect("tablet", permanent=True)
 
 
 class AccessLogListView(PermissionRequiredMixin, ListView):

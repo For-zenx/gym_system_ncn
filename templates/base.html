@@ -103,25 +103,19 @@
                             id="tabletStatusTrigger"
                             aria-expanded="false"
                             aria-controls="tabletStatusPopover"
-                            title="Estado de tablets"
+                            title="Estado de la tablet"
                         >
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                             </svg>
                         </button>
                         <div class="tablet-status-dots" aria-hidden="true">
-                            <span class="tablet-status-dot-indicator" data-role="access"></span>
-                            <span class="tablet-status-dot-indicator" data-role="enrollment"></span>
+                            <span class="tablet-status-dot-indicator"></span>
                         </div>
                         <div class="tablet-status-popover" id="tabletStatusPopover" hidden>
-                            <div class="tablet-status-popover-row" data-role="access">
+                            <div class="tablet-status-popover-row">
                                 <span class="tablet-status-popover-dot"></span>
-                                <span class="tablet-status-popover-label">Tablet de acceso</span>
-                                <span class="tablet-status-popover-text status-text">Offline</span>
-                            </div>
-                            <div class="tablet-status-popover-row" data-role="enrollment">
-                                <span class="tablet-status-popover-dot"></span>
-                                <span class="tablet-status-popover-label">Tablet de enrolamiento</span>
+                                <span class="tablet-status-popover-label">Tablet</span>
                                 <span class="tablet-status-popover-text status-text">Offline</span>
                             </div>
                         </div>
@@ -181,7 +175,7 @@
         }
     </script>
     <script src="{% static 'js/modal.js' %}?v=1.0"></script>
-    <script src="{% static 'js/dashboard_ws.js' %}?v=1.9"></script>
+    <script src="{% static 'js/dashboard_ws.js' %}?v=2.0"></script>
 
     {% block extra_js %}{% endblock %}
 

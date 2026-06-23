@@ -15,9 +15,9 @@
 
         <div id="tablet-offline-overlay" class="offline-overlay">
             <span style="font-size: 3rem; margin-bottom: 1rem;">📡</span>
-            <h3 style="color: #ef4444; margin-bottom: 0.5rem;">Tablet de Enrolamiento Desconectada</h3>
+            <h3 style="color: #ef4444; margin-bottom: 0.5rem;">Tablet desconectada</h3>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem; max-width: 350px;">
-                Se ha perdido la conexión con la tablet de enrolamiento o está apagada.
+                Se ha perdido la conexión con la tablet o está apagada.
             </p>
             <button type="button" class="btn btn-primary" onclick="reconnectTablet()" style="padding: 0.75rem 1.5rem;">Intentar Reconectar</button>
         </div>
@@ -27,7 +27,7 @@
                 CÁMARA DE ENROLAMIENTO
             </div>
             <p style="color: var(--text-muted); max-width: 400px; margin: 0 auto;">
-                Pídele al usuario que se pare frente a la tablet de enrolamiento.
+                Pídele al usuario que se pare frente a la tablet.
             </p>
         </div>
 
@@ -142,7 +142,6 @@
 <script src="{% static 'js/modal.js' %}?v=1.0"></script>
 <script>
     const offlineOverlay = document.getElementById('tablet-offline-overlay');
-    const ENROLLMENT_TABLET_ROLE = 'enrollment';
     const CEDULA_CHECK_URL = "{% url 'enrollment_cedula_check' %}";
     const termsStatusEl = document.getElementById('enrollment-terms-status');
     const termsAcceptedInput = document.getElementById('input-terms-accepted');
@@ -246,9 +245,6 @@
     }
 
     window.addEventListener('tabletStatusChanged', function (e) {
-        if (e.detail.role !== ENROLLMENT_TABLET_ROLE) {
-            return;
-        }
         if (e.detail.online) {
             offlineOverlay.classList.add('hidden');
             if (document.visibilityState === 'visible') {

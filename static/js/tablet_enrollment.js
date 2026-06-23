@@ -1,3 +1,4 @@
+// DEPRECATED: TASK-002 — tablet única NCN; reemplazado por tablet.js
 // tablet_enrollment.js — Tablet de enrolamiento (NCN)
 
 const WS_URL = window.TABLET_WS_URL;

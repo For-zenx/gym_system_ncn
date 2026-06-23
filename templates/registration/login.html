@@ -5,15 +5,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - NCN</title>
-    <link rel="stylesheet" href="{% static 'css/login.css' %}?v=1.3">
+    <link rel="stylesheet" href="{% static 'css/login.css' %}?v=2.1">
 </head>
 <body>
-    <div class="split-layout">
-        <div class="left-panel">
+    <div class="login-page">
+        <div class="login-backdrop" aria-hidden="true">
+            <div class="login-bg-slide is-active" style="background-image: url('{% static 'img/ncn_login_facade.jpg' %}');"></div>
+            <div class="login-bg-slide" style="background-image: url('{% static 'img/ncn_login_interior.jpg' %}');"></div>
+            <div class="login-bg-slide" style="background-image: url('{% static 'img/ncn_login_area.jpg' %}');"></div>
+        </div>
+        <div class="login-overlay"></div>
+
+        <main class="login-shell">
             <div class="login-box">
                 <div class="logo-area">
                     <h1><span>NCN</span></h1>
-                    <p style="color: #9ca3af; font-size: 0.875rem; margin-top: 0.5rem;">Ingresa tus credenciales.</p>
+                    <p class="logo-tagline">Ingresa tus credenciales.</p>
                 </div>
 
                 {% if form.errors %}
@@ -26,9 +33,9 @@
                     {% csrf_token %}
                     <div class="form-group">
                         <label for="id_username">Usuario</label>
-                        <input type="text" name="username" id="id_username" required autofocus placeholder="Ej. gymrasse">
+                        <input type="text" name="username" id="id_username" required autofocus placeholder="Ej. ncn">
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="id_password">Contraseña</label>
                         <input type="password" name="password" id="id_password" required placeholder="Ej. 123456">
@@ -38,8 +45,8 @@
                     <input type="hidden" name="next" value="{{ next }}">
                 </form>
             </div>
-        </div>
-        <div class="right-panel"></div>
+        </main>
     </div>
+    <script src="{% static 'js/login.js' %}?v=1.1"></script>
 </body>
 </html>

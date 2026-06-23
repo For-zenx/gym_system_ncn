@@ -1,3 +1,4 @@
+// DEPRECATED: TASK-002 — tablet única NCN; reemplazado por tablet.js
 // tablet_access.js — Tablet de acceso biométrico (NCN)
 
 const WS_URL = window.TABLET_WS_URL;

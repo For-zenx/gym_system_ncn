@@ -5,8 +5,7 @@ import pytest
 
 ENROLLMENT_FACE_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "enrollment_face.jpeg"
 
-WS_TABLET_ACCESS = "/ws/tablet/acceso/"
-WS_TABLET_ENROLLMENT = "/ws/tablet/enrolamiento/"
+WS_TABLET = "/ws/tablet/"
 WS_DASHBOARD = "/ws/dashboard/"
 
 

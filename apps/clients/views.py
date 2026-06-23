@@ -245,7 +245,7 @@ class ReEnrollClientView(PermissionRequiredMixin, View):
         profile_url = reverse("clients:profile", kwargs={"codigo_afiliado": client.codigo_afiliado})
 
         if not foto_frente_b64:
-            message = "Debe capturar la nueva foto del afiliado en la tablet de enrolamiento."
+            message = "Debe capturar la nueva foto del afiliado en la tablet."
             if wants_json:
                 return JsonResponse({"status": "error", "message": message}, status=400)
             messages.error(request, message)

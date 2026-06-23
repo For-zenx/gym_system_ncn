@@ -2,41 +2,36 @@
 const WS_URL = window.DASHBOARD_WS_URL;
 let dashboardSocket = null;
 let reconnectTimer = null;
+let tabletOnline = false;
 
-const TABLET_STATUS = {
-    access: false,
-    enrollment: false,
-};
-
-function getTabletStatusElements(role) {
+function getTabletStatusElements() {
     var widget = document.getElementById('tabletStatusWidget');
     if (!widget) {
         return null;
     }
     return {
-        dot: widget.querySelector('.tablet-status-dot-indicator[data-role="' + role + '"]'),
-        row: widget.querySelector('.tablet-status-popover-row[data-role="' + role + '"]'),
+        dot: widget.querySelector('.tablet-status-dot-indicator'),
+        row: widget.querySelector('.tablet-status-popover-row'),
+        statusText: widget.querySelector('.tablet-status-popover-text'),
     };
 }
 
-function updateStatusPill(role, online) {
-    var elements = getTabletStatusElements(role);
+function updateTabletStatus(online) {
+    var elements = getTabletStatusElements();
     if (!elements || !elements.dot || !elements.row) {
         return;
     }
 
-    var statusText = elements.row.querySelector('.status-text');
-    TABLET_STATUS[role] = online;
-
+    tabletOnline = online;
     elements.dot.classList.toggle('online', online);
     elements.row.classList.toggle('online', online);
 
-    if (statusText) {
-        statusText.textContent = online ? 'Online' : 'Offline';
+    if (elements.statusText) {
+        elements.statusText.textContent = online ? 'Online' : 'Offline';
     }
 
     window.dispatchEvent(new CustomEvent('tabletStatusChanged', {
-        detail: { online: online, role: role },
+        detail: { online: online },
     }));
 }
 
@@ -87,8 +82,7 @@ function connectDashboardWebSocket() {
 
     dashboardSocket.onclose = function () {
         console.warn('[Dashboard] WebSocket cerrado. Reintentando en 3s...');
-        updateStatusPill('access', false);
-        updateStatusPill('enrollment', false);
+        updateTabletStatus(false);
         reconnectTimer = setTimeout(connectDashboardWebSocket, 3000);
     };
 
@@ -99,8 +93,8 @@ function connectDashboardWebSocket() {
     dashboardSocket.onmessage = function (event) {
         try {
             const data = JSON.parse(event.data);
-            if (data.type === 'tablet_status' && data.role) {
-                updateStatusPill(data.role, !!data.online);
+            if (data.type === 'tablet_status') {
+                updateTabletStatus(!!data.online);
             } else if (data.type === 'ENROLLMENT_PHOTO') {
                 window.dispatchEvent(new CustomEvent('enrollmentPhotoReceived', {
                     detail: { photoType: data.photoType, image: data.image },
@@ -118,8 +112,7 @@ function connectDashboardWebSocket() {
 
 document.addEventListener('DOMContentLoaded', function () {
     initTabletStatusPopover();
-    updateStatusPill('access', false);
-    updateStatusPill('enrollment', false);
+    updateTabletStatus(false);
     if (WS_URL) {
         connectDashboardWebSocket();
     }

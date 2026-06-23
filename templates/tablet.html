@@ -1,79 +1,59 @@
-{# DEPRECATED: TASK-045 — reemplazado por tablet_access.html y tablet_enrollment.html #}
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NCN — Acceso</title>
+    <title>NCN — Tablet</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/tablet.css' %}?v=2.2">
+    <link rel="stylesheet" href="{% static 'css/tablet.css' %}?v=2.3">
 </head>
-<body>
+<body class="tablet-access-body">
 
-    <!-- Cámara: capa base fullscreen -->
     <video id="camera-feed" autoplay playsinline muted></video>
-    <!-- Canvas para dibujar los landmarks de la IA -->
     <canvas id="overlay-canvas"></canvas>
 
-    <!-- Overlay: nombre del sistema (esquina superior izquierda) -->
     <div id="overlay-brand" class="overlay">
         NCN
     </div>
 
-    <!-- Overlay: estado de conexión (esquina superior derecha) -->
     <div id="overlay-status" class="overlay">
         <div id="status-dot"></div>
         <span id="status-text">Conectando...</span>
     </div>
 
-    <!-- UI Enrolamiento: Marco de Enfoque Oscuro -->
-    <div id="focus-frame" class="focus-frame"></div>
-
-    <!-- UI Enrolamiento: Flechas de Dirección (SVG) -->
-    <div id="arrow-left" class="nav-arrow arrow-left hidden">
-        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-    </div>
-    <div id="arrow-right" class="nav-arrow arrow-right hidden">
-        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+    <div id="face-guide" class="face-guide face-guide-access active">
+        <div class="face-guide-oval access-guide-oval"></div>
     </div>
 
-    <!-- UI Enrolamiento: HUD de Instrucciones -->
-    <div id="hud-instruction" class="hud-bubble hidden">
-        <span id="hud-text">Cargando...</span>
+    <div id="access-bottom-banner" class="access-bottom-banner hidden" role="status">
+        <p id="access-banner-title" class="access-banner-title"></p>
+        <p id="access-banner-subtitle" class="access-banner-subtitle"></p>
     </div>
 
-    <div id="access-flash" class="access-flash hidden">
-        <div id="access-icon" style="font-size: 6rem; margin-bottom: 1rem;">✅</div>
-        <h1 id="access-title">¡Bienvenido!</h1>
-        <p id="access-subtitle">Juan Pérez</p>
+    <div id="hud-instruction" class="hud-bubble">
+        <span id="hud-text">Coloque su rostro en el óvalo</span>
     </div>
 
-    <!-- Inyectar la URL del WebSocket desde Django al contexto JS -->
+    <div id="terms-overlay" class="enrollment-terms-overlay hidden">
+        <div class="enrollment-terms-card">
+            <h2 class="enrollment-terms-title">Términos y condiciones</h2>
+            <div class="enrollment-terms-body">
+                <p>Los términos y condiciones del gimnasio se publicarán aquí.</p>
+                <p>Lea el documento con calma antes de continuar con su enrolamiento.</p>
+            </div>
+            <button type="button" id="terms-accept-btn" class="enrollment-terms-accept-btn">
+                Acepto los términos y condiciones
+            </button>
+        </div>
+    </div>
+
     <script>
         window.TABLET_WS_URL = "{{ ws_url }}";
     </script>
     <script src="{% static 'vendor/face-api.min.js' %}"></script>
-    <script src="{% static 'js/tablet.js' %}?v=1.4"></script>
-
-    <!-- DEBUG PANEL (Temporal para pruebas - Desactivado para commit) -->
-    <div id="debug-panel" style="display: none; position: absolute; bottom: 10px; right: 10px; width: 350px; height: 400px; background: rgba(0,0,0,0.85); color: #0f0; font-family: monospace; font-size: 11px; z-index: 9999; overflow-y: auto; padding: 10px; border: 1px solid #0f0; border-radius: 5px; pointer-events: auto;">
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #0f0; margin-bottom: 5px; padding-bottom: 5px; position: sticky; top: 0; background: rgba(0,0,0,0.9);">
-            <strong>DEBUG LOGS (Modo Acceso)</strong>
-            <button onclick="copyDebugLogs()" style="background: #0f0; color: #000; border: none; cursor: pointer; padding: 2px 5px; font-weight: bold;">Copy Logs</button>
-        </div>
-        <div id="debug-log-content" style="word-wrap: break-word; white-space: pre-wrap;"></div>
-    </div>
-
-    <script>
-        function copyDebugLogs() {
-            const content = document.getElementById('debug-log-content').innerText;
-            navigator.clipboard.writeText(content).then(() => {
-                alert('Logs copiados al portapapeles!');
-            });
-        }
-    </script>
-
+    <script src="{% static 'js/tablet_face_utils.js' %}?v=1.1"></script>
+    <script src="{% static 'js/tablet.js' %}?v=2.0"></script>
 </body>
 </html>
